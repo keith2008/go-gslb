@@ -55,8 +55,16 @@ Tested on Ubuntu 14.04 and Mac OS X 10.11.  Any platform supported by Go should 
 
 ## Configuration
 
+### Real World configs
+
+You can see real world configs here: 
+
+https://github.com/falling-sky/gslb 
+
+
 ### server.conf 
-For a full example, see the bundled [etc/server.conf](etc/server.conf)
+
+The examples below are just that - and not actually tracking the real world examples any more.  They are meant to illustrate key points of how the configuration works.
 
 The config format is a bastardization between INI and YAML.  At some point this may go back to pure YAML, but that depends on my figuring out how to handle unstructured data in Go.
 
@@ -218,6 +226,22 @@ Since "test-ipv6.com" refers to `send-users.test-ipv6.com`, Comcast customers wi
 
  
 This means that traffic to "test-ipv6.com" from Comcast goes to the dedicated mirror.
+
+## Zone Resource records
+
+These can come to the right side of a hostname, in the zone configuration.
+
+|RCODE | Example | Purpose|
+|------|---------|--------|
+|A|A 192.0.2.1|Registers an IPv4 address|
+|AAAA|AAAA 2001:db8::1|Registers an IPv6 address|
+|CNAME|CNAME example.org|Points to an alternate name.  Will treat as EXPAND if possbile, otherwise just as a normal CNAME.|
+|EXPAND|EXPAND server.example.com|Assuming server.example.com is in our local config, expand it and substitute here.  This is like a CNAME except with full expansion before sending to the user.|
+|HC|HC check_web server.example.com|Does a health check (using check_web) to make sure that server.example.com is up. If it is up, then it treats it like EXPAND. Otherwise, it is skipped.|
+|FB|FB server2.example.com|If we have no other A/AAAA records, then EXPAND serve2.example.com and use as a fallback set of addresses.|
+
+Most other types of well known RRs are parsed.  TTL is not at this time supported.
+
 
 
 ## Feedback
