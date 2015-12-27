@@ -53,33 +53,6 @@ func ourNewRR(s string) (dns.RR, error) {
 	return deep, err
 }
 
-func readGSLBCache(r *dns.Msg, view string, qname string) (data []byte, ok bool) {
-	// Threadsafe cache check for qname; returns []byte
-	if b, ok := getDNSReplyCache(view, qname); ok {
-		// Read and fix the reply cache.
-
-		// FIXED:  r.Id
-		// FIXED:  r.RecursionDesired
-
-		// TODO
-		// If we start to honor EDNS0 options..
-		//  - Worry about DNS reply sizes
-		//  - Worry about EDNS0 client-subnet
-
-		// FORNOW: We're just simple, dumb 512 byte responses
-		// without regards to client location.
-
-		bb := []byte{uint8(r.Id >> 8), uint8(r.Id & 0xff), b[2] & 0xfe}
-		if r.RecursionDesired {
-			bb[2] = b[2] | 0x01
-		}
-		// Finally, join the remainder of the cached packet header.
-		data := append(bb, b[3:]...)
-		return data, true
-	}
-	return nil, false
-}
-
 // handleReflectIP responds with the caller's IP address,
 // in the form of A/AAAA as well as TXT
 func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
@@ -94,15 +67,6 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	qnameLC := strings.ToLower(qname)   // We will ask for lowercase everything internally.
 
 	view, _, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
-
-	// Hey. Can we use the cache?
-	if qname == qnameLC {
-		if data, ok := readGSLBCache(r, view, qname); ok {
-			Debugf("Writing cached data\n")
-			w.Write(data)
-			return
-		}
-	}
 
 	m := new(dns.Msg)
 	m.SetReply(r)
@@ -164,23 +128,8 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	// DO SOME STUFF
 
 	// Finish up.
-	changed := vixie0x20HackMsg(m, qname) // Handle MixEdCase.org requests
-	if changed {
-		Debugf("Do not cache this reply\n")
-		w.WriteMsg(m)
-
-	} else {
-		// Emulate WriteMsg
-		Debugf("Packing message\n")
-		data, err := m.Pack()
-		if err == nil {
-			Debugf("Writing data\n")
-			_, err = w.Write(data)
-			Debugf("Saving data\n")
-			setDNSReplyCache(view, qname, data)
-			// TODO Cache this value
-		}
-	}
+	vixie0x20HackMsg(m, qname) // Handle MixEdCase.org requests
+	w.WriteMsg(m)
 }
 
 func vixie0x20HackMsg(reply *dns.Msg, qname string) (changed bool) {

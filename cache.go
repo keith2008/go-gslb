@@ -47,18 +47,6 @@ type RRCacheType struct {
 	Cache map[string]dns.RR
 }
 
-// LookupFEKey is a map key for LookupFECache
-type DNSReplyKeyType struct {
-	view  string
-	qname string
-}
-
-// DNSReplyCacheType is a cache for holding DNS resource records parsed from strings
-type DNSReplyCacheType struct {
-	Lock  sync.RWMutex
-	Cache map[DNSReplyKeyType][]byte
-}
-
 // LookupBECache is the "backend" cache for generic "Get me all records for this name and view"
 var LookupBECache LookupBECacheType
 
@@ -70,9 +58,6 @@ var LookupQWCache LookupQWCacheType
 
 // RRCache caches strings parsed into DNS RR objects
 var RRCache RRCacheType
-
-// DNSReplyCache caches packed binary DNS responses.  Just change the ID!
-var DNSReplyCache DNSReplyCacheType
 
 func init() {
 	InitCaches("startup", 10000)
@@ -105,11 +90,6 @@ func InitCaches(reason string, size int) {
 	RRCache.Lock.Lock()                             // RW
 	RRCache.Cache = make(map[string]dns.RR, size*2) // Initialize a clean map
 	RRCache.Lock.Unlock()                           // RW
-
-	// DNS replies
-	DNSReplyCache.Lock.Lock()                                      // RW
-	DNSReplyCache.Cache = make(map[DNSReplyKeyType][]byte, size*2) // Initialize a clean map
-	DNSReplyCache.Lock.Unlock()                                    // RW
 
 	return
 }
@@ -209,22 +189,4 @@ func getRRCache(key string) (rr dns.RR, ok bool) {
 	rr, ok = RRCache.Cache[key]
 	RRCache.Lock.RUnlock() // RO
 	return rr, ok
-}
-
-// setLookupQWCache updates the "back end" cache with matching strings.
-func setDNSReplyCache(view string, qname string, b []byte) {
-	key := DNSReplyKeyType{view, qname}
-	DNSReplyCache.Lock.Lock() // RW
-	DNSReplyCache.Cache[key] = b
-	DNSReplyCache.Lock.Unlock() // RW
-	return
-}
-
-// getLookupBECache reads from the "back end" cache; only use results if "ok" is true
-func getDNSReplyCache(view string, qname string) (b []byte, ok bool) {
-	key := DNSReplyKeyType{view, qname}
-	DNSReplyCache.Lock.RLock() // RO
-	b, ok = DNSReplyCache.Cache[key]
-	DNSReplyCache.Lock.RUnlock() // RO
-	return b, ok
 }
