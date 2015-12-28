@@ -2,11 +2,13 @@ package main
 
 import (
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"sync"
 	"testing"
+	"time"
 )
 
 var checksInitOnce sync.Once
@@ -55,9 +57,9 @@ func TestCheckHttpDown(t *testing.T) {
 
 	b, err := checkHTTP(WebServerHostPort)
 	if b != true {
-		t.Logf("check_http(%s) good", WebServerHostPort)
+		t.Logf("checkHTTP(%s) good", WebServerHostPort)
 	} else {
-		t.Errorf("check_http(%s) error: %v", WebServerHostPort, err)
+		t.Errorf("checkHTTP(%s) error: %v", WebServerHostPort, err)
 	}
 }
 
@@ -69,22 +71,73 @@ func TestCheckHttpUp(t *testing.T) {
 
 	b, err := checkHTTP(WebServerHostPort)
 	if b == true {
-		t.Logf("check_http(%s) good", WebServerHostPort)
+		t.Logf("checkHTTP(%s) good", WebServerHostPort)
 	} else {
-		t.Errorf("check_http(%s) error: %v", WebServerHostPort, err)
+		t.Errorf("checkHTTP(%s) error: %v", WebServerHostPort, err)
 	}
 }
 
 // TestCheckMirror checks /site/config.js for "master.test-ipv6.com" in the content
-func TestCheckMirror(t *testing.T) {
+func TestCheckMirrorHelper(t *testing.T) {
 	initGlobal("t/etc")
 	FakeWebServer(t)
 	http.HandleFunc("/site/config.js", FakeMirrorJsConfig)
 
-	b, err := checkMirror(WebServerHostPort)
+	b, err := checkMirrorHelper(WebServerHostPort)
 	if b == true {
-		t.Logf("check_mirror(%s) good", WebServerHostPort)
+		t.Logf("checkMirrorHelper(%s) good", WebServerHostPort)
 	} else {
-		t.Errorf("check_mirror(%s) error: %v", WebServerHostPort, err)
+		t.Errorf("checkMirrorHelper(%s) error: %v", WebServerHostPort, err)
+	}
+}
+
+func TestCheckHttpLiteral(t *testing.T) {
+
+	url := "http://[2001:470:1:18::119]/ip/"
+
+	seconds := 10
+	timeout := time.Duration(seconds) * time.Second
+	client := &http.Client{Timeout: timeout}
+
+	req, err := http.NewRequest("GET", url, nil)
+	req.Host = "ipv6.test-ipv6.com"
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Errorf("Failed %s %v", url, err)
+		return
+	}
+	defer resp.Body.Close()
+	_, _ = ioutil.ReadAll(resp.Body)
+	t.Logf("Success %v url %s", resp.StatusCode, url)
+
+}
+
+var tableLookupLookupAddressHostPort = []struct {
+	name string
+	port string
+	val  string
+	ok   bool
+}{
+	{"a.example.com", "80", "192.0.2.1:80", true},
+	{"aaaa.example.com", "80", "[2001:db8::1]:80", true},
+	{"ds.example.com", "80", "[2001:db8::1]:80", true},
+	{"expand.example.com", "80", "[2001:db8::1]:80", true},
+	{"192.0.2.1:80", "80", "192.0.2.1:80", true},
+	{"192.0.2.1:8080", "80", "192.0.2.1:8080", true},
+	{"[2001:db8::1]:80", "80", "[2001:db8::1]:80", true},
+	{"[2001:db8::1]:8080", "80", "[2001:db8::1]:8080", true},
+	{"offhost.example.net", "80", "offhost.example.net:80", false},
+	{"offhost.example.net:8080", "80", "offhost.example.net:8080", false},
+}
+
+func TestLookupLookupAddressHostPort(t *testing.T) {
+
+	for _, tt := range tableLookupLookupAddressHostPort {
+		val, ok := LookupAddressHostPort(tt.name, tt.port)
+		if val != tt.val || ok != tt.ok {
+			t.Errorf("LookupAddressHostPort(%v,%v) expected (%v,%v) found (%v,%v)", tt.name, tt.port, tt.val, tt.ok, val, ok)
+		} else {
+			t.Logf("LookupAddressHostPort(%v,%v) ok", tt.name, tt.port)
+		}
 	}
 }
