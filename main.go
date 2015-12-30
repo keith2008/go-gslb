@@ -61,7 +61,10 @@ go tool pprof --inuse_objects http://%s/debug/pprof/heap
 goroutines 
 go tool pprof http://%s/debug/pprof/goroutine?
 
-`, where, where, where, where)
+Stats
+curl --silent http://%s/debug/vars | grep -vi malloc
+
+`, where, where, where, where, where)
 
 }
 

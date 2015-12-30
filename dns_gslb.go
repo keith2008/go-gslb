@@ -17,7 +17,7 @@ func findView(ipString string) (view string, asnString string, ispString string)
 
 	asnString, ispString = GlobalMaxMind().Lookup(ipString) // AS number and ISP text Name
 
-	statsMaxMind.Add(asnString, 1) // Keep track of queries from various service providers.
+	statsMaxMind.Increment(asnString) // Keep track of queries from various service providers.
 
 	view = "default"      // Default view name.  May override based on ASN or Resolver
 	I := GlobalViewData() // Get and keep a stable (threadsafe) handle
@@ -152,10 +152,10 @@ func statsMsg(reply *dns.Msg) {
 	}
 
 	if isResponse {
-		statsResponse.Add(qtypeStr, 1)
-		statsResponse.Add(RcodeStr, 1)
+		statsResponse.Increment(qtypeStr)
+		statsResponse.Increment(RcodeStr)
 
-		if false {
+		/*
 			// TODO Find a cheap way to figure out if our response is
 			// a wildcard response, or a legit direct answer.
 			// Why? Wildcards will polute the scoreboard - badly.
@@ -163,16 +163,16 @@ func statsMsg(reply *dns.Msg) {
 			if reply.Rcode == dns.RcodeSuccess {
 				statsQname.Add(qnameLC, 1)
 			}
-		}
+		*/
 
 		// If we needed the Vixie 0x20 bit hack for entropy,
 		// make a note of it in the stats.  Might be useful.
 		if qname != qnameLC {
-			statsResponse.Add("0x20", 1)
+			statsResponse.Increment("0x20")
 		}
 	} else {
-		statsQuery.Add(qtypeStr, 1)
-		statsQuery.Add(RcodeStr, 1)
+		statsQuery.Increment(qtypeStr)
+		statsQuery.Increment(RcodeStr)
 
 	}
 
