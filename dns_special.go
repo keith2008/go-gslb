@@ -16,9 +16,10 @@ func handleAS(w dns.ResponseWriter, r *dns.Msg) {
 	m.Compress = true
 
 	// Reasons to refuse to answer, there are many.
-	if len(r.Question) < 1 ||
-		r.Question[0].Qclass != dns.ClassINET ||
+	if r.Question[0].Qclass != dns.ClassINET ||
 		(r.Question[0].Qtype != dns.TypeTXT && r.Question[0].Qtype != dns.TypeANY) {
+		statsMsg(r)
+		statsMsg(m)
 		w.WriteMsg(m)
 		return
 	}
@@ -35,6 +36,8 @@ func handleAS(w dns.ResponseWriter, r *dns.Msg) {
 		m.Answer = append(m.Answer, rr)
 	}
 
+	statsMsg(r)
+	statsMsg(m)
 	w.WriteMsg(m)
 	return
 }
@@ -47,8 +50,7 @@ func handleHelp(w dns.ResponseWriter, r *dns.Msg) {
 	m.Compress = true
 
 	// Reasons to refuse to answer, there are many.
-	if len(r.Question) < 1 ||
-		r.Question[0].Qclass != dns.ClassINET ||
+	if r.Question[0].Qclass != dns.ClassINET ||
 		(r.Question[0].Qtype != dns.TypeTXT && r.Question[0].Qtype != dns.TypeANY) {
 		w.WriteMsg(m)
 		return
@@ -89,7 +91,9 @@ func handleHelp(w dns.ResponseWriter, r *dns.Msg) {
 		m.Answer = append(m.Answer, rr)
 	}
 
-	vixie0x20HackMsg(m, qname) // Handle MixEdCase.org requests
+	vixie0x20HackMsg(m) // Handle MixEdCase.org requests
+	statsMsg(r)
+	statsMsg(m)
 	w.WriteMsg(m)
 	return
 }
@@ -102,8 +106,7 @@ func handleISP(w dns.ResponseWriter, r *dns.Msg) {
 	m.Compress = true
 
 	// Reasons to refuse to answer, there are many.
-	if len(r.Question) < 1 ||
-		r.Question[0].Qclass != dns.ClassINET ||
+	if r.Question[0].Qclass != dns.ClassINET ||
 		(r.Question[0].Qtype != dns.TypeTXT && r.Question[0].Qtype != dns.TypeANY) {
 		w.WriteMsg(m)
 		return
@@ -119,7 +122,9 @@ func handleISP(w dns.ResponseWriter, r *dns.Msg) {
 		m.Answer = append(m.Answer, rr)
 	}
 
-	vixie0x20HackMsg(m, qname) // Handle MixEdCase.org requests
+	vixie0x20HackMsg(m) // Handle MixEdCase.org requests
+	statsMsg(r)
+	statsMsg(m)
 	w.WriteMsg(m)
 	return
 }
@@ -130,8 +135,7 @@ func handleMaxMind(w dns.ResponseWriter, r *dns.Msg) {
 	m.SetReply(r)
 	m.Compress = true
 	// Reasons to refuse to answer, there are many.
-	if len(r.Question) < 1 ||
-		r.Question[0].Qclass != dns.ClassINET ||
+	if r.Question[0].Qclass != dns.ClassINET ||
 		(r.Question[0].Qtype != dns.TypeTXT && r.Question[0].Qtype != dns.TypeANY) {
 		w.WriteMsg(m)
 		return
@@ -149,7 +153,9 @@ func handleMaxMind(w dns.ResponseWriter, r *dns.Msg) {
 		m.Answer = append(m.Answer, rr)
 	}
 
-	vixie0x20HackMsg(m, qname) // Handle MixEdCase.org requests
+	vixie0x20HackMsg(m) // Handle MixEdCase.org requests
+	statsMsg(r)
+	statsMsg(m)
 	w.WriteMsg(m)
 	return
 }
@@ -161,8 +167,7 @@ func handleView(w dns.ResponseWriter, r *dns.Msg) {
 	m.Compress = true
 
 	// Reasons to refuse to answer, there are many.
-	if len(r.Question) < 1 ||
-		r.Question[0].Qclass != dns.ClassINET ||
+	if r.Question[0].Qclass != dns.ClassINET ||
 		(r.Question[0].Qtype != dns.TypeTXT && r.Question[0].Qtype != dns.TypeANY) {
 		w.WriteMsg(m)
 		return
@@ -178,7 +183,9 @@ func handleView(w dns.ResponseWriter, r *dns.Msg) {
 		m.Answer = append(m.Answer, rr)
 	}
 
-	vixie0x20HackMsg(m, qname) // Handle MixEdCase.org requests
+	vixie0x20HackMsg(m) // Handle MixEdCase.org requests
+	statsMsg(r)
+	statsMsg(m)
 	w.WriteMsg(m)
 	return
 }
@@ -248,6 +255,8 @@ func handleIP(w dns.ResponseWriter, r *dns.Msg) {
 
 	}
 	// Finish up.
-	vixie0x20HackMsg(m, qname) // Handle MixEdCase.org requests
+	vixie0x20HackMsg(m) // Handle MixEdCase.org requests
+	statsMsg(r)
+	statsMsg(m)
 	w.WriteMsg(m)
 }
