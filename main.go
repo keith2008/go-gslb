@@ -10,7 +10,6 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"runtime/pprof"
 	"strings"
 	"syscall"
 )
@@ -22,6 +21,7 @@ var debugFlag = flag.Bool("debug", false, "show extra output to screen")
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 var memprofile = flag.String("memprofile", "", "write cpu profile to file")
 var profile = flag.Bool("profile", false, "export profiler to port 28000")
+var httpOption = flag.String("http", "", "Start HTTP server, ie: :28000")
 
 func init() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
@@ -44,7 +44,13 @@ func getLocalIP() string {
 }
 
 func webServerTips(where string) {
+	h := ourHostname()
+	if strings.HasPrefix(where, "[::]:") {
+		where = h + where[4:]
+	}
+
 	log.Printf(`Tips:
+		
 30 seconds of CPU
 go tool pprof http://%s/debug/pprof/profile
 
@@ -54,25 +60,43 @@ go tool pprof --inuse_objects http://%s/debug/pprof/heap
 
 goroutines 
 go tool pprof http://%s/debug/pprof/goroutine?
+
 `, where, where, where, where)
 
 }
-func webServerStart(where string) {
-	go func() {
-		log.Println(http.ListenAndServe(where, nil))
-	}()
-}
-func webServer() {
-	h := ourHostname()
 
-	if strings.HasSuffix(h, ".local") {
-		where := "127.0.0.1:28000"
-		webServerStart(where)
-		webServerTips(where)
-	} else {
-		where := getLocalIP() + ":28000"
-		webServerStart(where)
-		webServerTips(where)
+func startOneHTTP(addr string) (bound string, err error) {
+	log.Printf("startOneHTTP(%s)\n", addr)
+	sock, err := net.Listen("tcp", addr)
+	if err != nil {
+		return addr, err
+	}
+	go func() {
+		http.Serve(sock, nil)
+	}()
+	return sock.Addr().String(), nil
+}
+func startHTTP() {
+	log.Printf("startHTTP\n")
+	tries := []string{*httpOption}
+	if found, ok := GlobalConfig().GetSectionNameValueStrings("server", "http"); ok {
+		tries = append(tries, found...)
+	}
+	first := true
+	for _, try := range tries {
+		if try != "" {
+			bound, err := startOneHTTP(try)
+			if err == nil {
+				log.Printf("HTTP listening on %v\n", bound)
+				if first {
+					first = false
+					webServerTips(bound)
+				}
+			} else {
+				log.Printf("HTTP failed on %v: %v", try, err)
+
+			}
+		}
 	}
 }
 
@@ -80,37 +104,11 @@ func main() {
 	flag.Parse()
 	log.Printf("EtcFlag is %v\n", *etcFlag)
 	log.Printf("DebugFlag is %v\n", *debugFlag)
-	log.Printf("cpuprofile is %v\n", *cpuprofile)
-	log.Printf("memprofile is %v\n", *memprofile)
-	log.Printf("(web)profile is %v\n", *profile)
-
-	// Profiling MUST Be in main or else the defer will close prematurely
-	// Jasons-MacBook:gslb jfesler$ ./gslb -cpuprofile cpu.pprof
-	// Jasons-MacBook:gslb jfesler$ go tool pprof --pdf gslb cpu.pprof > 1.pdf
-	// http://blog.golang.org/profiling-go-programs
-	if *cpuprofile != "" {
-		f, err := os.Create(*cpuprofile)
-		if err != nil {
-			log.Println("Error: ", err)
-		}
-		pprof.StartCPUProfile(f)
-		defer pprof.StopCPUProfile()
-	}
-	if *memprofile != "" {
-		f, err := os.Create(*memprofile)
-		if err != nil {
-			log.Println("Error: ", err)
-		}
-		pprof.WriteHeapProfile(f)
-		defer pprof.StopCPUProfile()
-	}
-	if *profile {
-		webServer()
-	}
-
 	log.Printf("main()\n")
 	initGlobal(*etcFlag)
+	startHTTP()
 	startDNS()
+	log.Printf("Sitting and waiting ()\n")
 
 	// Who wants to live forever?
 	sig := make(chan os.Signal)
