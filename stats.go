@@ -37,9 +37,8 @@ func (b *statsBundleType) periodic() {
 		// Can we compute a delta? If so, figure out the query rate
 		if previous, found := b.snapshot[key]; found {
 			delta := value - previous // How many from last time until now?
-			qpm := delta / 60         // Turn this into a "per minute" number
 			qpmVar := new(expvar.Int) // expvar's "set" interface *demands* a expvar.Int
-			qpmVar.Set(qpm)           // .. which then needs the value stored afterwords
+			qpmVar.Set(delta)         // .. which then needs the value stored afterwords
 			b.qpm.Set(key, qpmVar)    // And then we can finally set this gauge value.
 		}
 
