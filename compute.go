@@ -95,7 +95,7 @@ func (n *LookupTrace) Addf(recursion int, format string, a ...interface{}) {
 // If cached, we can expect to see the DNS "Answers" action to rotate every time this result is fetched (done by cache layer)
 // Results are cached; don't modify the underlying store.
 func LookupFrontEnd(qname string, view string, qtype string, recursion int, trace *LookupTrace) LookupResults {
-	qname = strings.ToLower(qname)
+	qname = toLower(qname)
 
 	// Canonicalize query to not include the ".";
 	// sometimes queries are internally generated and they
@@ -326,7 +326,7 @@ func parseTokenFromString(line string) (rtype string) {
 	words := QuotedStringToWords(line)
 	//words := strings.SplitN(line, " ", 2)
 	if len(words) > 0 {
-		return strings.ToUpper(words[0])
+		return toUpper(words[0])
 	}
 
 	return ""
@@ -348,7 +348,7 @@ func CreateRRString(line string, resourceName string) (record string) {
 	words := QuotedStringToWords(line)
 
 	if len(words) > 1 {
-		rtype := strings.ToUpper(words[0])
+		rtype := toUpper(words[0])
 		remainder := []string{}
 		for _, s := range words[1:] {
 			if rtype == "TXT" || rtype == "SPF" || strings.ContainsAny(s, " \t") {
@@ -357,7 +357,7 @@ func CreateRRString(line string, resourceName string) (record string) {
 				//s = fmt.Sprintf("\"%s\"", s) // Quote TXT, SPF, and anthing with whitespace
 			} else {
 				if s == words[len(words)-1] {
-					s = strings.ToLower(s) // Canonicalize target names as lower case
+					s = toLower(s) // Canonicalize target names as lower case
 				}
 			}
 			remainder = append(remainder, s)
@@ -405,7 +405,7 @@ func LookupBackEnd(qname string, view string, skipHC bool, zoneRef *Config, recu
 
 	returnData := []string{} // Container to return results to the caller
 
-	name := strings.ToLower(qname) // Make lower case.
+	name := toLower(qname) // Make lower case.
 
 	found, ok := zoneRef.GetSectionNameValueStrings(view, name) // Find the view-specific (or default) strings for the name
 
@@ -415,7 +415,7 @@ func LookupBackEnd(qname string, view string, skipHC bool, zoneRef *Config, recu
 	loop:
 		for _, line := range found {
 			words := QuotedStringToWords(line) // Tokenize for processing
-			token := strings.ToUpper(words[0]) // Simplifies checking if we only look at all-caps
+			token := toUpper(words[0])         // Simplifies checking if we only look at all-caps
 
 			// Health checks. If the HC is good, translate into an EXPAND.
 			// If the HC is bad, then simply skip the line.

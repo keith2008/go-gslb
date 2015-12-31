@@ -35,11 +35,12 @@ var tableLookupBackEnd = []struct {
 func TestLookupBackEnd(t *testing.T) {
 	initGlobal("t/etc")
 	ClearCaches("unit testing TestLookupBackEnd")
-	zoneRef := GlobalZoneData() // Get the latest reference to the zone data
+	zoneRef := GlobalZoneData()    // Get the latest reference to the zone data
+	notrace := NewLookupTraceOff() // Needed for Lookup*
 
 	for _, tt := range tableLookupBackEnd {
 		// tt.qname tt.qtype tt.view tt.out
-		s := LookupBackEnd(tt.qname, tt.view, false, 2, zoneRef, nil)
+		s := LookupBackEnd(tt.qname, tt.view, false, zoneRef, 0, notrace)
 
 		found := fmt.Sprintf("%s", s)
 
@@ -137,6 +138,7 @@ var tableLookupFrontEnd = []struct {
 func TestLookupFrontEnd(t *testing.T) {
 	initGlobal("t/etc")
 	ClearCaches("unit testing TestLookupFrontEnd")
+	notrace := NewLookupTraceOff() // Needed for Lookup*
 
 	// NOTE: if we do not clear the caches, the caches are allowed
 	// to rotate RRs on us, making the easy string compares not so easy.
@@ -144,7 +146,7 @@ func TestLookupFrontEnd(t *testing.T) {
 
 	for _, tt := range tableLookupFrontEnd {
 		// tt.qname tt.qtype tt.view tt.out
-		s := LookupFrontEndNoCache(tt.qname, tt.view, tt.qtype, nil)
+		s := LookupFrontEndNoCache(tt.qname, tt.view, tt.qtype, 0, notrace)
 
 		found := fmt.Sprintf("%s", s)
 
@@ -159,11 +161,12 @@ func TestLookupFrontEnd(t *testing.T) {
 func BenchmarkLookupShort(b *testing.B) {
 	// Expensive stuff first
 	initGlobal("t/etc")
+	notrace := NewLookupTraceOff() // Needed for Lookup*
 	b.ResetTimer()
 
 	// Now loop the important part of the benchmark
 	for n := 0; n < b.N; n++ {
-		_ = LookupFrontEnd("ipv4.master.test-ipv6.com", "comcast", "A", nil)
+		_ = LookupFrontEnd("ipv4.master.test-ipv6.com", "comcast", "A", 0, notrace)
 
 	}
 }
@@ -171,11 +174,12 @@ func BenchmarkLookupShort(b *testing.B) {
 func BenchmarkLookupLong(b *testing.B) {
 	// Expensive stuff first
 	initGlobal("t/etc")
+	notrace := NewLookupTraceOff() // Needed for Lookup*
 	b.ResetTimer()
 
 	// Now loop the important part of the benchmark
 	for n := 0; n < b.N; n++ {
-		_ = LookupFrontEnd("test-ipv6.com", "comcast", "A", nil)
+		_ = LookupFrontEnd("test-ipv6.com", "comcast", "A", 0, notrace)
 
 	}
 }

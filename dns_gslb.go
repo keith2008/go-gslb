@@ -69,7 +69,7 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	qname := r.Question[0].Name         // This is OUR name; so use it in our response
 	ipString := w.RemoteAddr().String() // The user is from where?. dns.go only gives us strings.
 	qtypeStr := "UNKNOWN"               // Default until we know better
-	qnameLC := strings.ToLower(qname)   // We will ask for lowercase everything internally.
+	qnameLC := toLower(qname)   // We will ask for lowercase everything internally.
 
 	view, _, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
 
@@ -165,8 +165,8 @@ func myHTTPGslbTrace(w http.ResponseWriter, r *http.Request, trace *LookupTrace)
 		return
 	}
 	for _, word := range words[3:] {
-		uc := strings.ToUpper(word)
-		lc := strings.ToLower(word)
+		uc := toUpper(word)
+		lc := toLower(word)
 
 		// Easy one first.  DNS types
 		if _, ok := dns.StringToType[uc]; ok {
@@ -200,7 +200,7 @@ func myHTTPGslbTrace(w http.ResponseWriter, r *http.Request, trace *LookupTrace)
 		continue
 	}
 
-	qnameLC := strings.ToLower(qname)
+	qnameLC := toLower(qname)
 	trace.Addf(0, "Looking up qname=%s qtype=%s view=%s", qnameLC, qtypeStr, view)
 	trace.Addf(0, "")
 
@@ -241,7 +241,7 @@ func myHTTPGslbTrace(w http.ResponseWriter, r *http.Request, trace *LookupTrace)
 func statsMsg(reply *dns.Msg) {
 	isResponse := reply.Response
 	qname := reply.Question[0].Name
-	qnameLC := strings.ToLower(qname)
+	qnameLC := toLower(qname)
 
 	RcodeStr := "UNKNOWN_RCODE"
 	qtypeStr := "UNKNONN_QTYPE"
@@ -284,7 +284,7 @@ func vixie0x20HackMsg(reply *dns.Msg) (changed bool) {
 	// spend extra cycles to modify all the names
 	// to meet the 0x20 hack
 	qname := reply.Question[0].Name
-	qnameLC := strings.ToLower(qname)
+	qnameLC := toLower(qname)
 
 	if qnameLC == qname {
 		return changed // Do nothing.

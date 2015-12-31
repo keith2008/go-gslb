@@ -117,3 +117,23 @@ func indentSpaces(c int) string {
 	s := lotsOfSpace[0:c]
 	return s
 }
+
+
+func toLower(s string) string { 
+  b := make([]byte, len(s)) 
+  for i := range b { 
+    c := s[i] 
+    if c >= 'A' && c <= 'Z' { c += 'a' - 'A' } 
+    b[i] = c 
+  } 
+  return string(b) 
+} 
+func toUpper(s string) string { 
+  b := make([]byte, len(s)) 
+  for i := range b { 
+    c := s[i] 
+    if c >= 'a' && c <= 'z' { c -= 'a' - 'A' } 
+    b[i] = c 
+  } 
+  return string(b) 
+} 
