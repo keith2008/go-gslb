@@ -16,6 +16,7 @@ var WebServerHostPort = "" // Will populate on init
 
 // FakeMirrorJsConfig produces a simple respose, with the magic text that check_mirror wants
 func FakeMirrorJsConfig(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
 	io.WriteString(w, "mocked web server for testing.\nmaster.test-ipv6.com\n")
 }
 

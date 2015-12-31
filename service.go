@@ -1,8 +1,13 @@
 package main
 
 import (
+	"fmt"
+	"io"
 	"log"
 	"math/rand"
+	"net/http"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -97,4 +102,30 @@ func SetStatus(service string, target string, status bool) (changed bool, ok boo
 
 func empty(service string, target string, status bool) {
 	return
+}
+
+func dumpHealthCheckStatusAsText() string {
+	ret := make([]string, 0, 0)
+	// Copy the status, with as minimal time as possible inside the lock
+	HealthChecks.Lock.Lock() // RW
+	for key, val := range HealthChecks.Status {
+		s := fmt.Sprintf("%s %s: %v\n", key.Service, key.Target, val)
+		ret = append(ret, s)
+	}
+	HealthChecks.Lock.Unlock() // RW
+	sort.Strings(ret)
+	retStr := strings.Join(ret, "")
+	return retStr
+}
+
+func myHTTPHealthHandler(w http.ResponseWriter, r *http.Request) {
+	s := dumpHealthCheckStatusAsText()
+	w.Header().Set("Content-Type", "text/plain")
+	io.WriteString(w, s)
+}
+
+func init() {
+	http.HandleFunc("/gslb/hc", myHTTPHealthHandler)
+	http.HandleFunc("/gslb/healthcheck", myHTTPHealthHandler)
+
 }

@@ -65,7 +65,3 @@ func newStat(name string) *statsBundleType {
 
 	return b
 }
-
-func init() {
-
-}
