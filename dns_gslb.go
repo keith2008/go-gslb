@@ -11,6 +11,8 @@ import (
 	"github.com/miekg/dns"
 )
 
+var NOTRACE = NewLookupTraceOff() // Reuse this across GSLB requests
+
 func findView(ipString string) (view string, asnString string, ispString string) {
 	//fmt.Printf("findView(%s)\n", ipString)
 	ip, _, err := net.SplitHostPort(ipString)
@@ -70,7 +72,6 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	ipString := w.RemoteAddr().String() // The user is from where?. dns.go only gives us strings.
 	qtypeStr := "UNKNOWN"               // Default until we know better
 	qnameLC := toLower(qname)           // We will ask for lowercase everything internally.
-	notrace := NewLookupTraceOff()      // No tracing via DNS queries (only via HTTP)
 
 	view, _, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
 
@@ -102,7 +103,7 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 
 	// TOOD handle QCLASS not being IN
 
-	stuff := LookupFrontEnd(qnameLC, view, qtypeStr, 0, notrace)
+	stuff := LookupFrontEnd(qnameLC, view, qtypeStr, 0, NOTRACE)
 
 	for _, s := range stuff.Ans {
 		rr, err := ourNewRR(s)
@@ -133,7 +134,9 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	m.Authoritative = stuff.Aa
 
 	// Finish up.
-	vixie0x20HackMsg(m) // Handle MixEdCase.org requests
+	if qname != qnameLC {
+		vixie0x20HackMsg(m) // Handle MixEdCase.org requests
+	}
 	statsMsg(r)
 	statsMsg(m)
 	w.WriteMsg(m)
