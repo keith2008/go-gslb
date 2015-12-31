@@ -98,7 +98,15 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	if wasLC {
 		if cachedBytes, cachedRcodeStr, ok := getMsgCache(qname, view, qtype); ok {
 			// Make a copy, but with modified header
-			newLeader := []byte{uint8(r.Id >> 8), uint8(r.Id & 0xff), uint8(r.Rcode)}
+			bits := int(cachedBytes[2])
+			if r.RecursionDesired {
+				bits = bits | 0x01 // Set RD
+			} else {
+				bits = bits &^ 0x01 // Clear RD
+			}
+			_ = bits
+
+			newLeader := []byte{uint8(r.Id >> 8), uint8(r.Id & 0xff), uint8(bits)}
 			newData := append(newLeader, cachedBytes[3:]...)
 			w.Write(newData)
 
