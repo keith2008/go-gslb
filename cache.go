@@ -104,6 +104,7 @@ func InitCaches(reason string, size int) {
 	// IP to zone cache
 	LookupViewCache.Lock.Lock()                             // RW
 	LookupViewCache.Cache = make(map[string]string, size*2) // Initialize a clean map
+	LookupViewCache.MaxSize = size                          // Set the upper limit on size until we purge
 	LookupViewCache.Lock.Unlock()                           // RW
 
 	return
