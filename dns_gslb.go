@@ -69,7 +69,8 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	qname := r.Question[0].Name         // This is OUR name; so use it in our response
 	ipString := w.RemoteAddr().String() // The user is from where?. dns.go only gives us strings.
 	qtypeStr := "UNKNOWN"               // Default until we know better
-	qnameLC := toLower(qname)   // We will ask for lowercase everything internally.
+	qnameLC := toLower(qname)           // We will ask for lowercase everything internally.
+	notrace := NewLookupTraceOff()      // No tracing via DNS queries (only via HTTP)
 
 	view, _, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
 
@@ -101,7 +102,7 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 
 	// TOOD handle QCLASS not being IN
 
-	stuff := LookupFrontEnd(qnameLC, view, qtypeStr, 0, nil)
+	stuff := LookupFrontEnd(qnameLC, view, qtypeStr, 0, notrace)
 
 	for _, s := range stuff.Ans {
 		rr, err := ourNewRR(s)
