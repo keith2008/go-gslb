@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
+	"io"
 	"log"
 	"net"
+	"net/http"
 	"strings"
 
 	"github.com/miekg/dns"
@@ -98,7 +101,7 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 
 	// TOOD handle QCLASS not being IN
 
-	stuff := LookupFrontEnd(qnameLC, view, qtypeStr)
+	stuff := LookupFrontEnd(qnameLC, view, qtypeStr, 0, nil)
 
 	for _, s := range stuff.Ans {
 		rr, err := ourNewRR(s)
@@ -133,6 +136,106 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	statsMsg(r)
 	statsMsg(m)
 	w.WriteMsg(m)
+}
+
+func WebHandleTrace(w http.ResponseWriter, r *http.Request) {
+	trace := NewLookupTrace()
+	myHTTPGslbTrace(w, r, trace)
+
+}
+func WebHandleLookup(w http.ResponseWriter, r *http.Request) {
+	notrace := NewLookupTraceOff()
+	myHTTPGslbTrace(w, r, notrace)
+}
+
+// handleReflectIP responds with the caller's IP address,
+// in the form of A/AAAA as well as TXT
+func myHTTPGslbTrace(w http.ResponseWriter, r *http.Request, trace *LookupTrace) {
+
+	qname := "unspecified"
+	qtypeStr := "A"
+	view := "default"
+
+	//   /gslb/trace/test-ipv6.com
+	//   /gslb/trace/test-ipv6.com/A
+	//   /gslb/trace/test-ipv6.com/A/comcast
+	words := strings.Split(r.RequestURI, "/")
+	if len(words) < 3 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	for _, word := range words[3:] {
+		uc := strings.ToUpper(word)
+		lc := strings.ToLower(word)
+
+		// Easy one first.  DNS types
+		if _, ok := dns.StringToType[uc]; ok {
+			qtypeStr = uc
+			continue
+		}
+
+		// "Views".
+		Debugf("1 checking possible view word %s\n", word)
+		I := GlobalViewData()
+		if found, ok := I.GetSectionNameValueString("default", word); ok {
+			Debugf("2 checking possible view word %s\n", word)
+
+			view = found
+			continue
+		}
+		if found, ok := I.GetSectionNameValueString("default", lc); ok {
+			Debugf("3 checking possible view word %s\n", word)
+
+			view = found
+			continue
+		}
+		if strings.ContainsAny(word, ".") {
+			qname = word
+
+		} else {
+			view = word
+		}
+
+		// Must be a name?
+		continue
+	}
+
+	qnameLC := strings.ToLower(qname)
+	trace.Addf(0, "Looking up qname=%s qtype=%s view=%s", qnameLC, qtypeStr, view)
+	trace.Addf(0, "")
+
+	stuff := LookupFrontEnd(qnameLC, view, qtypeStr, 0, trace)
+
+	w.Header().Set("Content-Type", "text/plain")
+	text := strings.Join(trace.trace, "")
+	io.WriteString(w, text)
+	io.WriteString(w, "\n")
+	io.WriteString(w, fmt.Sprintf("QNAME: %v\n", qnameLC))
+
+	io.WriteString(w, fmt.Sprintf("RCODE: %v AA: %v\n", dns.RcodeToString[stuff.Rcode], stuff.Aa))
+	io.WriteString(w, "\n")
+
+	if len(stuff.Ans) > 0 {
+		io.WriteString(w, "Answers:\n")
+		for _, s := range stuff.Ans {
+			io.WriteString(w, "  "+s+"\n")
+		}
+	}
+
+	if len(stuff.Auth) > 0 {
+		io.WriteString(w, "Auth:\n")
+		for _, s := range stuff.Auth {
+			io.WriteString(w, "  "+s+"\n")
+		}
+	}
+
+	if len(stuff.Add) > 0 {
+		io.WriteString(w, "Additional:\n")
+		for _, s := range stuff.Add {
+			io.WriteString(w, "  "+s+"\n")
+		}
+	}
+
 }
 
 func statsMsg(reply *dns.Msg) {
@@ -204,4 +307,10 @@ func vixie0x20HackMsg(reply *dns.Msg) (changed bool) {
 		}
 	}
 	return changed
+}
+
+func init() {
+	http.HandleFunc("/gslb/trace/", WebHandleTrace)
+	http.HandleFunc("/gslb/lookup/", WebHandleLookup)
+
 }

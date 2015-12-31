@@ -49,8 +49,8 @@ func LookupAddressByType(qname string, token string) (value string, ok bool) {
 	name := qname
 	zoneRef := GlobalZoneData()
 	view := "default"
-	token = strings.ToUpper(token)                        // Make sure this is canonicalized, just in case
-	lookup := LookupBackEnd(name, view, true, 2, zoneRef) // Do we know anything about this name?
+	token = strings.ToUpper(token)                             // Make sure this is canonicalized, just in case
+	lookup := LookupBackEnd(name, view, true, zoneRef, 2, nil) // Dummy recursion=2
 	for _, line := range lookup {
 		words := QuotedStringToWords(line)
 		lastword := words[len(words)-1]

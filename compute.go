@@ -33,7 +33,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/miekg/dns"
 )
 
@@ -54,10 +53,48 @@ type LookupResults struct {
 // myNSRe is used to find NS targets in a string of text
 var myNSRe = regexp.MustCompile(`\bNS\s+(\S+)`) // Used for finding NS to add glue
 
+// Used when tracing lookups
+type LookupTrace struct {
+	recursion int
+	trace     []string
+}
+
+// NewLookupTrace provides a new tracing object
+func NewLookupTrace() *LookupTrace {
+	n := new(LookupTrace)
+	n.trace = make([]string, 0, 0)
+	return n
+}
+func NewLookupTraceOff() *LookupTrace {
+	n := new(LookupTrace)
+	return n
+}
+
+// Add will add a line of trace information, indented based on current recursion tracker.
+func (n *LookupTrace) Add(recursion int, s string) {
+	if n.trace != nil {
+		indentStr := indentSpaces(recursion) // For indenting debug output
+		if strings.HasSuffix(s, "\n") {
+			padded := indentStr + s
+			n.trace = append(n.trace, padded)
+
+		} else {
+			padded := indentStr + s + "\n"
+			n.trace = append(n.trace, padded)
+		}
+	}
+}
+func (n *LookupTrace) Addf(recursion int, format string, a ...interface{}) {
+	if n.trace != nil {
+		s := fmt.Sprintf(format, a...)
+		n.Add(recursion, s)
+	}
+}
+
 // LookupFrontEnd will return a set of results based on the asked name, the ISP name, the query class, and query type.
 // If cached, we can expect to see the DNS "Answers" action to rotate every time this result is fetched (done by cache layer)
 // Results are cached; don't modify the underlying store.
-func LookupFrontEnd(qname string, view string, qtype string) LookupResults {
+func LookupFrontEnd(qname string, view string, qtype string, recursion int, trace *LookupTrace) LookupResults {
 	qname = strings.ToLower(qname)
 
 	// Canonicalize query to not include the ".";
@@ -67,26 +104,15 @@ func LookupFrontEnd(qname string, view string, qtype string) LookupResults {
 	if strings.HasSuffix(qname, ".") {
 		qname = qname[0 : len(qname)-1] // Strip the "." at the end
 	}
-	cached, ok := getLookupFECache(qname, view, qtype)
-	if ok {
-		return cached
+	if trace.trace == nil { // Skip when tracing, otherwise try and read/return the cache
+		cached, ok := getLookupFECache(qname, view, qtype)
+		if ok {
+			return cached
+		}
 	}
-	ret := LookupFrontEndNoCache(qname, view, qtype) // Results are final
-	setLookupFECache(qname, view, qtype, ret)        // Dump to cache
-	return ret                                       // And return
-}
-
-// dumpLookupResults a LookupResults record to the screen, but only if debug is enabled in the server configs.
-func dumpLookupResults(title string, results LookupResults) {
-	debug, _ := GlobalConfig().GetSectionNameValueBool("lookup", "debug") // If set, spews to the screen
-	if debug {
-		Debugf("----------------------------------\n")
-		Debugf("%s\n", title)
-		Debugf("----------------------------------\n")
-		Debugf("%v", spew.Sdump(results))
-		Debugf("\n")
-	}
-
+	ret := LookupFrontEndNoCache(qname, view, qtype, recursion+1, trace) // Results are final
+	setLookupFECache(qname, view, qtype, ret)                            // Dump to cache
+	return ret                                                           // And return
 }
 
 // LookupFrontEndNoCache takes a query for a given name, view, class, and qtype;
@@ -99,7 +125,10 @@ func dumpLookupResults(title string, results LookupResults) {
 //   DNS glue records for anything we know about
 // Note that we do NOT handle dynamic queries like "ip.test-ipv6.com" here.
 // Only cacheable entries go here.  Special queries will get hand crafted results.
-func LookupFrontEndNoCache(qname string, view string, qtype string) LookupResults {
+func LookupFrontEndNoCache(qname string, view string, qtype string, recursion int, trace *LookupTrace) LookupResults {
+
+	trace.Addf(0, "LookupFrontEndNoCache(%s,%s,%s)", qname, view, qtype)
+
 	var results LookupResults
 	results.Aa = true                // By default, be authoritive
 	results.Rcode = dns.RcodeSuccess // NOERROR
@@ -111,7 +140,7 @@ func LookupFrontEndNoCache(qname string, view string, qtype string) LookupResult
 	zoneRef := GlobalZoneData() // Get the latest reference to the zone data
 
 	// Go do a basic lookup.
-	lookupList := LookupBackEnd(qname, view, false, 2, zoneRef)
+	lookupList := LookupBackEnd(qname, view, false, zoneRef, recursion+1, trace)
 
 	// We still have work to do.
 	// We need to look for DELEGATE commands
@@ -125,7 +154,7 @@ func LookupFrontEndNoCache(qname string, view string, qtype string) LookupResult
 		// No additionals other than the glue that DelegateNS
 		// wants to add.
 		if rtype == "DELEGATE" {
-			return DelegateNS(zoneRef, qname, view, lookup)
+			return DelegateNS(zoneRef, qname, view, lookup, recursion+1, trace)
 		}
 
 		// CNAME send away immediately.
@@ -144,18 +173,19 @@ func LookupFrontEndNoCache(qname string, view string, qtype string) LookupResult
 	}
 
 	if len(lookupList) == 0 { // No records at all.  So, REFUSED or NXDOMAIN ?
-		return NotOurs(zoneRef, qname, view) // REFUSED and NXDOMAIN both handled here
+		return NotOurs(zoneRef, qname, view, recursion+1, trace) // REFUSED and NXDOMAIN both handled here
 	}
 
 	// No answers?  But we were authoritative?
 	// That's bad luck.
 	if len(results.Ans) == 0 {
-		return NoAnswers(zoneRef, qname, view)
+		return NoAnswers(zoneRef, qname, view, recursion+1, trace)
 	}
 
 	// Yep, this is ours.  Add NS, possibly from a parent.
 	if qtype != "NS" {
-		nsname, ns := LookupWithParentsIfNeeded(zoneRef, qname, view, "NS")
+		trace.Addf(recursion, "Checking to see if we should add NS")
+		nsname, ns := LookupWithParentsIfNeeded(zoneRef, qname, view, "NS", recursion+1, trace)
 		for _, line := range ns {
 			data := CreateRRString(line, nsname)      // SPECIFY the found NS name here - it miht be a parent
 			results.Auth = append(results.Auth, data) // NS goes into the AUTH section when stapled with other results
@@ -175,9 +205,10 @@ func LookupFrontEndNoCache(qname string, view string, qtype string) LookupResult
 				continue // We already saw it.
 			}
 			seencache[ns] = true // Note that we've seen it for next time.
+			trace.Addf(recursion, "Found NS, checking for glue for %s", ns)
 
-			possibleGlue := LookupBackEnd(ns, view, true, 2, zoneRef) // See what we know about that NS
-			for _, possibleLine := range possibleGlue {               // For each record in the lookup name
+			possibleGlue := LookupBackEnd(ns, view, true, zoneRef, recursion+1, trace) // See what we know about that NS
+			for _, possibleLine := range possibleGlue {                                // For each record in the lookup name
 				r := parseTokenFromString(possibleLine) // Find out what RR type that record is
 				if r == "A" || r == "AAAA" {            // If it is A or AAAA, we want it
 					data := CreateRRString(possibleLine, ns) // to create glue
@@ -191,9 +222,11 @@ func LookupFrontEndNoCache(qname string, view string, qtype string) LookupResult
 
 // NotOurs - used when we know nothing.
 // May be NXDOMAIN or REFUSED, depending
-func NotOurs(zoneRef *Config, qname string, view string) LookupResults {
+func NotOurs(zoneRef *Config, qname string, view string, recursion int, trace *LookupTrace) LookupResults {
+	trace.Addf(recursion, "NotOurs(%s,%s)", qname, view)
+
 	var results LookupResults
-	soaname, strList := LookupWithParentsIfNeeded(zoneRef, qname, view, "SOA")
+	soaname, strList := LookupWithParentsIfNeeded(zoneRef, qname, view, "SOA", recursion+1, trace)
 	if len(strList) == 0 {
 		results.Aa = false               // This isn't our domain.
 		results.Rcode = dns.RcodeRefused // REFUSED
@@ -210,12 +243,14 @@ func NotOurs(zoneRef *Config, qname string, view string) LookupResults {
 
 // NoAnswers - used when we do know the name, but
 // don't have any records for the given type asked
-func NoAnswers(zoneRef *Config, qname string, view string) LookupResults {
+func NoAnswers(zoneRef *Config, qname string, view string, recursion int, trace *LookupTrace) LookupResults {
+	trace.Addf(recursion, "NoAnswers(%s,%s)", qname, view)
+
 	var results LookupResults
 	results.Aa = true                // We know this domain. We know it has no answers.
 	results.Rcode = dns.RcodeSuccess // NOERROR
 
-	soaname, strList := LookupWithParentsIfNeeded(zoneRef, qname, view, "SOA")
+	soaname, strList := LookupWithParentsIfNeeded(zoneRef, qname, view, "SOA", recursion+1, trace)
 	for _, soa := range strList {
 		data := CreateRRString(soa, soaname)
 		results.Auth = append(results.Auth, data)
@@ -226,7 +261,11 @@ func NoAnswers(zoneRef *Config, qname string, view string) LookupResults {
 // DelegateNS will hand craft a response for a domain
 // that has been DELEGATE'd to another location.
 //  "I'm not the authority for this data; go elsewhere".
-func DelegateNS(zoneRef *Config, qname string, view string, delegate string) LookupResults {
+func DelegateNS(zoneRef *Config, qname string, view string, delegate string, recursion int, trace *LookupTrace) LookupResults {
+	if trace != nil {
+		trace.Addf(2, "DelegateNS(%s,%s,%s)", qname, view, delegate)
+	}
+
 	var results LookupResults
 	results.Aa = false // never authoritive when delegating away
 	words := QuotedStringToWords(delegate)
@@ -240,7 +279,7 @@ func DelegateNS(zoneRef *Config, qname string, view string, delegate string) Loo
 			results.Auth = append(results.Add, s)
 
 			// Add in the glue for additional
-			ipList := LookupBackEnd(to, view, false, 2, zoneRef)
+			ipList := LookupBackEnd(to, view, false, zoneRef, recursion+1, trace)
 			for _, record := range ipList {
 				r := parseTokenFromString(record)
 				if r == "A" || r == "AAAA" {
@@ -258,11 +297,15 @@ func DelegateNS(zoneRef *Config, qname string, view string, delegate string) Loo
 // will find the records for the name (or a parent name) with the matching RR
 // Mainly used for building NS and SOA records
 // TODO: Announce a countest for a better function name to replace "LookupWithParentsIfNeeded"
-func LookupWithParentsIfNeeded(zoneRef *Config, qname string, view string, token string) (record string, lines []string) {
+func LookupWithParentsIfNeeded(zoneRef *Config, qname string, view string, token string, recursion int, trace *LookupTrace) (record string, lines []string) {
+	if trace != nil {
+		trace.Addf(recursion, "LookupWithParentsIfNeeded(%s,%s,%s)", qname, view, token)
+	}
+
 	name := qname
 	matches := []string{}
 	for strings.Contains(name, ".") {
-		lookup := LookupBackEnd(name, view, true, 2, zoneRef) // Do we know anything about this name?
+		lookup := LookupBackEnd(name, view, true, zoneRef, recursion+1, trace) // Do we know anything about this name?
 		for _, line := range lookup {
 			t := parseTokenFromString(line)
 			if t == token {
@@ -344,7 +387,11 @@ func CreateRRString(line string, resourceName string) (record string) {
 // without regard as to token type.  EXPAND CNAME HC and FB are expanded.
 // No glue work is done; no evaluating the results is done.  Just simple expansion
 // with health checks factored in.
-func LookupBackEnd(qname string, view string, skipHC bool, recursion int, zoneRef *Config) []string {
+func LookupBackEnd(qname string, view string, skipHC bool, zoneRef *Config, recursion int, trace *LookupTrace) []string {
+
+	if trace != nil {
+		trace.Addf(recursion, "LookupBackEnd(%s,%s,%v)", qname, view, skipHC)
+	}
 
 	// Strip trailing "." if found
 	if strings.HasSuffix(qname, ".") {
@@ -356,15 +403,11 @@ func LookupBackEnd(qname string, view string, skipHC bool, recursion int, zoneRe
 		return cached
 	}
 
-	indentStr := indentSpaces(recursion) // For indenting debug output
-	returnData := []string{}             // Container to return results to the caller
+	returnData := []string{} // Container to return results to the caller
 
 	name := strings.ToLower(qname) // Make lower case.
 
-	Debugf("%s Invoked LookupBackEnd(name=%s, view=%s, skip_hc=%v)\n", indentStr, name, view, skipHC)
-
 	found, ok := zoneRef.GetSectionNameValueStrings(view, name) // Find the view-specific (or default) strings for the name
-	Debugf("%s found=%#v, ok=%#v\n", indentStr, found, ok)
 
 	if (ok) && (len(found) > 0) {
 		hcFound := false // Keep track of whether any HC (Health Check) lines were seen
@@ -383,11 +426,12 @@ func LookupBackEnd(qname string, view string, skipHC bool, recursion int, zoneRe
 					hc := words[1]
 					target := words[2]
 					keep, _ := GetStatus(hc, target)
-					Debugf("%s status(%v,%v)=%v\n", indentStr, hc, target, keep)
+					if trace != nil {
+						trace.Add(recursion, fmt.Sprintf("HC %s %s %v", hc, target, keep))
+					}
 					if keep || skipHC {
 						words = []string{"EXPAND", target}
 						token = "EXPAND"
-						Debugf("%s %#v\n", indentStr, words)
 						// We will continue processing this line, don't exit early.
 					} else {
 						continue loop // Skip this line.  It is dead to us.
@@ -409,15 +453,17 @@ func LookupBackEnd(qname string, view string, skipHC bool, recursion int, zoneRe
 					}
 				}
 				token = "EXPAND" // Convert to EXPAND, we do need this fallback
+				trace.Add(recursion, "FB needed")
 			}
 
 			// Expand and CNAME will recursively pull in other strings.
 			if token == "EXPAND" || token == "CNAME" || token == "FB" {
 				if len(words) >= 2 {
 					try := words[1]
-					Debugf("%s %s LookupBackEnd: We need to expand %v\n", indentStr, token, try)
 
-					more := LookupBackEnd(try, view, skipHC, recursion+1, zoneRef)
+					trace.Addf(recursion, "%s %s", words[0], words[1])
+
+					more := LookupBackEnd(try, view, skipHC, zoneRef, recursion+1, trace)
 
 					if len(more) > 0 {
 						// CNAME, if found locally, will be treated like EXPAND to save a round-trip to the DNS server.
@@ -428,7 +474,7 @@ func LookupBackEnd(qname string, view string, skipHC bool, recursion int, zoneRe
 						if token == "CNAME" {
 							returnData = append(returnData, line) // Keep the CNAME as-is
 						} else {
-							Debugf("%s LookupBackEnd: %v asked to %v %v; not found\n", indentStr, name, token, try)
+							Debugf("LookupBackEnd: %v asked to %v %v; not found\n", name, token, try)
 						}
 					}
 				}
@@ -461,8 +507,8 @@ func LookupBackEnd(qname string, view string, skipHC bool, recursion int, zoneRe
 			}
 
 			if needRerun {
-				Debugf("%s LookupBackEnd: %v needs to rerun with health checks disabled\n", indentStr, name)
-				returnData = LookupBackEnd(name, view, true, recursion+1, zoneRef)
+				trace.Add(recursion, "LookupBackEnd: Rerunning with health checks disabled")
+				returnData = LookupBackEnd(name, view, true, zoneRef, recursion+1, trace)
 			}
 		}
 
@@ -472,7 +518,7 @@ func LookupBackEnd(qname string, view string, skipHC bool, recursion int, zoneRe
 			sp := strings.SplitN(name, ".", 2) // Split the name into the first hostname, and the remainder
 			if len(sp) > 1 {
 				try := "*." + sp[1] // Replace the hostname with a *, only if we found a "."
-				returnData = LookupBackEnd(try, view, skipHC, recursion+1, zoneRef)
+				returnData = LookupBackEnd(try, view, skipHC, zoneRef, recursion+1, trace)
 			}
 		}
 	}

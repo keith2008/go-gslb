@@ -39,7 +39,7 @@ func TestLookupBackEnd(t *testing.T) {
 
 	for _, tt := range tableLookupBackEnd {
 		// tt.qname tt.qtype tt.view tt.out
-		s := LookupBackEnd(tt.qname, tt.view, false, 2, zoneRef)
+		s := LookupBackEnd(tt.qname, tt.view, false, 2, zoneRef, nil)
 
 		found := fmt.Sprintf("%s", s)
 
@@ -144,7 +144,7 @@ func TestLookupFrontEnd(t *testing.T) {
 
 	for _, tt := range tableLookupFrontEnd {
 		// tt.qname tt.qtype tt.view tt.out
-		s := LookupFrontEndNoCache(tt.qname, tt.view, tt.qtype)
+		s := LookupFrontEndNoCache(tt.qname, tt.view, tt.qtype, nil)
 
 		found := fmt.Sprintf("%s", s)
 
@@ -158,11 +158,12 @@ func TestLookupFrontEnd(t *testing.T) {
 
 func BenchmarkLookupShort(b *testing.B) {
 	// Expensive stuff first
+	initGlobal("t/etc")
 	b.ResetTimer()
 
 	// Now loop the important part of the benchmark
 	for n := 0; n < b.N; n++ {
-		_ = LookupFrontEnd("ipv4.master.test-ipv6.com", "comcast", "A")
+		_ = LookupFrontEnd("ipv4.master.test-ipv6.com", "comcast", "A", nil)
 
 	}
 }
@@ -170,13 +171,11 @@ func BenchmarkLookupShort(b *testing.B) {
 func BenchmarkLookupLong(b *testing.B) {
 	// Expensive stuff first
 	initGlobal("t/etc")
-
 	b.ResetTimer()
 
 	// Now loop the important part of the benchmark
 	for n := 0; n < b.N; n++ {
-
-		_ = LookupFrontEnd("test-ipv6.com", "comcast", "A")
+		_ = LookupFrontEnd("test-ipv6.com", "comcast", "A", nil)
 
 	}
 }
