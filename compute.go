@@ -368,7 +368,17 @@ func CreateRRString(line string, resourceName string) (record string) {
 			resourceName = resourceName + "."
 		}
 
-		data := fmt.Sprintf("%s %v %s %s", resourceName, TheOneAndOnlyTTL, rtype, strings.Join(remainder, " "))
+		// Depending on what the RTYPE is, we might take some liberties
+		// and force canonicalize on input the target of CNAME, NS, MX, and SRV.
+		// Better to do this at generation time, instead of per-query.
+		var data string
+		switch rtype {
+		case "CNAME", "NS", "MX", "SRV":
+			data = fmt.Sprintf("%s %v %s %s", resourceName, TheOneAndOnlyTTL, rtype, toLower(strings.Join(remainder, " ")))
+
+		default:
+			data = fmt.Sprintf("%s %v %s %s", resourceName, TheOneAndOnlyTTL, rtype, strings.Join(remainder, " "))
+		}
 
 		// The shitty thing about keeping all this stuff in plain human readable
 		// is that the trailing dots are needed but often missed.
