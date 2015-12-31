@@ -87,10 +87,28 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 
 	qname := r.Question[0].Name         // This is OUR name; so use it in our response
 	ipString := w.RemoteAddr().String() // The user is from where?. dns.go only gives us strings.
-	qtypeStr := "UNKNOWN"               // Default until we know better
+	qtype := r.Question[0].Qtype        // What are we asking for?
+	qtypeStr := qtypeToString(qtype)    // What are we asking for? A STRING!
 	qnameLC := toLower(qname)           // We will ask for lowercase everything internally.
+	wasLC := qname == qnameLC           // We really care about the case that people us when asking.
 
 	view := findViewOnly(ipString) // Geo + Resolver -> which data name in zone.conf
+
+	// Hey.  Maybe we can return cached data?
+	if wasLC {
+		if cachedBytes, cachedRcodeStr, ok := getMsgCache(qname, view, qtype); ok {
+			// Make a copy, but with modified header
+			newLeader := []byte{uint8(r.Id >> 8), uint8(r.Id & 0xff), uint8(r.Rcode)}
+			newData := append(newLeader, cachedBytes[3:]...)
+			w.Write(newData)
+
+			// Don't forget the stats.
+			statsQuery.Increment(qtypeStr)
+			statsResponse.Increment(cachedRcodeStr)
+
+			return
+		}
+	}
 
 	m := new(dns.Msg)
 	m.SetReply(r)
@@ -107,21 +125,11 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
-	// We'll need to pass the Qtype as a string to Lookup
-	if cl1, ok := dns.TypeToString[r.Question[0].Qtype]; ok {
-		qtypeStr = cl1
-	}
-
-	// _ = fmt.Sprintf("%v %v %v", view, asnString, ispString)
-
-	// We know all we care to about the client.
-	// We should now see what we know in our zone data.
-	//stuff := Lookup(qname, view, qtype string)
-
-	// TOOD handle QCLASS not being IN
-
+	// Go do real computational work to see what our records should say.
 	stuff := LookupFrontEnd(qnameLC, view, qtypeStr, 0, NOTRACE)
 
+	// Copy the results to fully formed RRs and stuff them into our
+	// message.
 	for _, s := range stuff.Ans {
 		rr, err := ourNewRR(s)
 		if err == nil {
@@ -151,19 +159,54 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	m.Authoritative = stuff.Aa
 
 	// Finish up.
-	if qname != qnameLC {
+	if wasLC {
 		vixie0x20HackMsg(m) // Handle MixEdCase.org requests
 	}
+
+	// Save some stats
 	statsMsg(r)
 	statsMsg(m)
-	w.WriteMsg(m)
+
+	// Finally, pack, possibly cache, and write the dns response
+	data, err := m.Pack()
+	if err != nil {
+		// We had an error creating a DNS packet?
+		log.Printf("Error with m.Pack %v", err)
+		return
+	}
+
+	if wasLC == true && len(stuff.Ans) < 2 {
+		// Hey, we can cache this.
+		// No MixEdCaSE and no DNS Round Robin.
+		rcodeStr := rcodeToString(stuff.Rcode)          // For stats
+		setMsgCache(qname, view, qtype, data, rcodeStr) // Needs only minor fixups to serve again
+	}
+
+	w.Write(data)
 }
 
+func rcodeToString(rcode int) string {
+	if cl1, ok := dns.RcodeToString[rcode]; ok {
+		return cl1
+	}
+	return fmt.Sprintf("Rcode%v", rcode)
+
+}
+func qtypeToString(qtype uint16) string {
+	if cl1, ok := dns.TypeToString[qtype]; ok {
+		return cl1
+	}
+	return fmt.Sprintf("Qtype%v", qtype)
+}
+
+// WebHandleTrace serves /gslb/trace/HOSTNAME
 func WebHandleTrace(w http.ResponseWriter, r *http.Request) {
 	trace := NewLookupTrace()
 	myHTTPGslbTrace(w, r, trace)
 
 }
+
+// WebHandleLookup serves /gslb/lookup/HOSTNAME
 func WebHandleLookup(w http.ResponseWriter, r *http.Request) {
 	notrace := NewLookupTraceOff()
 	myHTTPGslbTrace(w, r, notrace)
@@ -195,30 +238,25 @@ func myHTTPGslbTrace(w http.ResponseWriter, r *http.Request, trace *LookupTrace)
 			continue
 		}
 
-		// "Views".
-		Debugf("1 checking possible view word %s\n", word)
+		// "Views" - by IP address or AS number.
 		I := GlobalViewData()
 		if found, ok := I.GetSectionNameValueString("default", word); ok {
-			Debugf("2 checking possible view word %s\n", word)
-
 			view = found
 			continue
 		}
 		if found, ok := I.GetSectionNameValueString("default", lc); ok {
-			Debugf("3 checking possible view word %s\n", word)
-
 			view = found
 			continue
 		}
+
+		// Otherwise, is it a hostname or a view (by name)?
+		// Assumption: views don't use dots.
 		if strings.ContainsAny(word, ".") {
 			qname = word
 
 		} else {
 			view = word
 		}
-
-		// Must be a name?
-		continue
 	}
 
 	qnameLC := toLower(qname)
@@ -233,7 +271,7 @@ func myHTTPGslbTrace(w http.ResponseWriter, r *http.Request, trace *LookupTrace)
 	io.WriteString(w, "\n")
 	io.WriteString(w, fmt.Sprintf("QNAME: %v\n", qnameLC))
 
-	io.WriteString(w, fmt.Sprintf("RCODE: %v AA: %v\n", dns.RcodeToString[stuff.Rcode], stuff.Aa))
+	io.WriteString(w, fmt.Sprintf("RCODE: %v AA: %v\n", rcodeToString(stuff.Rcode), stuff.Aa))
 	io.WriteString(w, "\n")
 
 	if len(stuff.Ans) > 0 {
@@ -264,16 +302,8 @@ func statsMsg(reply *dns.Msg) {
 	qname := reply.Question[0].Name
 	qnameLC := toLower(qname)
 
-	RcodeStr := "UNKNOWN_RCODE"
-	qtypeStr := "UNKNONN_QTYPE"
-
-	// We'll need to pass the Qtype as a string to Lookup
-	if cl1, ok := dns.TypeToString[reply.Question[0].Qtype]; ok {
-		qtypeStr = cl1
-	}
-	if cl1, ok := dns.RcodeToString[reply.Rcode]; ok {
-		RcodeStr = cl1
-	}
+	RcodeStr := rcodeToString(reply.Rcode)
+	qtypeStr := qtypeToString(reply.Question[0].Qtype)
 
 	if isResponse {
 		statsResponse.Increment(RcodeStr)

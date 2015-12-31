@@ -54,6 +54,20 @@ type RRCacheType struct {
 	Cache map[string]dns.RR
 }
 
+type MsgCacheRecord struct {
+	msg      []byte
+	rcodeStr string
+}
+type MsgCacheKey struct {
+	qname string
+	view  string
+	qtype uint16
+}
+type MsgCacheType struct {
+	Lock  sync.RWMutex
+	Cache map[MsgCacheKey]MsgCacheRecord
+}
+
 // LookupBECache is the "backend" cache for generic "Get me all records for this name and view"
 var LookupBECache LookupBECacheType
 
@@ -68,6 +82,9 @@ var LookupViewCache LookupViewCacheType
 
 // RRCache caches strings parsed into DNS RR objects
 var RRCache RRCacheType
+
+// Binary cache of packed DNS messages, ready for bit-twiddling.
+var MsgCache MsgCacheType
 
 func init() {
 	InitCaches("startup", 10000)
@@ -106,6 +123,11 @@ func InitCaches(reason string, size int) {
 	LookupViewCache.Cache = make(map[string]string, size*2) // Initialize a clean map
 	LookupViewCache.MaxSize = size                          // Set the upper limit on size until we purge
 	LookupViewCache.Lock.Unlock()                           // RW
+
+	// Compiled DNS response messages
+	MsgCache.Lock.Lock()                                          // RW
+	MsgCache.Cache = make(map[MsgCacheKey]MsgCacheRecord, size*2) // Initialize a clean map
+	MsgCache.Lock.Unlock()                                        // RW
 
 	return
 }
@@ -226,4 +248,20 @@ func getLookupViewCache(key string) (s string, ok bool) {
 	s, ok = LookupViewCache.Cache[key]
 	LookupViewCache.Lock.RUnlock() // RO
 	return s, ok
+}
+func getMsgCache(qname string, view string, qtype uint16) (msg []byte, rcodeStr string, ok bool) {
+	key := MsgCacheKey{qname: qname, view: view, qtype: qtype}
+	MsgCache.Lock.RLock() // RO
+	s, o := MsgCache.Cache[key]
+	MsgCache.Lock.RUnlock() // RO
+	if o {
+		return s.msg, s.rcodeStr, o
+	}
+	return nil, "", false
+}
+func setMsgCache(qname string, view string, qtype uint16, msg []byte, rcodeStr string) {
+	key := MsgCacheKey{qname: qname, view: view, qtype: qtype}
+	MsgCache.Lock.Lock() // RW
+	MsgCache.Cache[key] = MsgCacheRecord{msg: msg, rcodeStr: rcodeStr}
+	MsgCache.Lock.Unlock() // RW
 }
