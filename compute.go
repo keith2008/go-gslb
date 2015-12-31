@@ -415,9 +415,7 @@ func LookupBackEnd(qname string, view string, skipHC bool, zoneRef *Config, recu
 
 	returnData := []string{} // Container to return results to the caller
 
-	name := toLower(qname) // Make lower case.
-
-	found, ok := zoneRef.GetSectionNameValueStrings(view, name) // Find the view-specific (or default) strings for the name
+	found, ok := zoneRef.GetSectionNameValueStrings(view, qname) // Find the view-specific (or default) strings for the name
 
 	if (ok) && (len(found) > 0) {
 		hcFound := false // Keep track of whether any HC (Health Check) lines were seen
@@ -484,7 +482,7 @@ func LookupBackEnd(qname string, view string, skipHC bool, zoneRef *Config, recu
 						if token == "CNAME" {
 							returnData = append(returnData, line) // Keep the CNAME as-is
 						} else {
-							Debugf("LookupBackEnd: %v asked to %v %v; not found\n", name, token, try)
+							Debugf("LookupBackEnd: %v asked to %v %v; not found\n", qname, token, try)
 						}
 					}
 				}
@@ -518,14 +516,14 @@ func LookupBackEnd(qname string, view string, skipHC bool, zoneRef *Config, recu
 
 			if needRerun {
 				trace.Add(recursion, "LookupBackEnd: Rerunning with health checks disabled")
-				returnData = LookupBackEnd(name, view, true, zoneRef, recursion+1, trace)
+				returnData = LookupBackEnd(qname, view, true, zoneRef, recursion+1, trace)
 			}
 		}
 
 	} else {
 		// Try wildcards?
-		if len(name) > 2 && name[0:2] != "*." { // What about the wildcard?
-			sp := strings.SplitN(name, ".", 2) // Split the name into the first hostname, and the remainder
+		if len(qname) > 2 && qname[0:2] != "*." { // What about the wildcard?
+			sp := strings.SplitN(qname, ".", 2) // Split the name into the first hostname, and the remainder
 			if len(sp) > 1 {
 				try := "*." + sp[1] // Replace the hostname with a *, only if we found a "."
 				returnData = LookupBackEnd(try, view, skipHC, zoneRef, recursion+1, trace)
