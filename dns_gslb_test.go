@@ -81,3 +81,21 @@ func BenchmarkDNSCopyRR(b *testing.B) {
 		_ = dns.Copy(rr)
 	}
 }
+
+func BenchmarkFindView(b *testing.B) {
+	ip := "50.184.213.245:12345"
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		_, _, _ = findView(ip)
+	}
+}
+
+func BenchmarkFindViewCached(b *testing.B) {
+	ip := "50.184.213.245:12345"
+	_, asn, _ := findView(ip)
+	setLookupViewCache(ip, asn)
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		_, _ = getLookupViewCache(ip)
+	}
+}

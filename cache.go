@@ -41,6 +41,13 @@ type LookupQWCacheType struct {
 	Cache map[string][]string
 }
 
+// LookupQWCacheType is a cache for holding tokenized strings
+type LookupViewCacheType struct {
+	Lock    sync.RWMutex
+	Cache   map[string]string
+	MaxSize int
+}
+
 // RRCacheType is a cache for holding DNS resource records parsed from strings
 type RRCacheType struct {
 	Lock  sync.RWMutex
@@ -55,6 +62,9 @@ var LookupFECache LookupFECacheType
 
 // LookupQWCache is the "frontend" cache with DNS-ready LookupResults, including glue
 var LookupQWCache LookupQWCacheType
+
+// LookupViewCache caches IP -> zone name
+var LookupViewCache LookupViewCacheType
 
 // RRCache caches strings parsed into DNS RR objects
 var RRCache RRCacheType
@@ -90,6 +100,11 @@ func InitCaches(reason string, size int) {
 	RRCache.Lock.Lock()                             // RW
 	RRCache.Cache = make(map[string]dns.RR, size*2) // Initialize a clean map
 	RRCache.Lock.Unlock()                           // RW
+
+	// IP to zone cache
+	LookupViewCache.Lock.Lock()                             // RW
+	LookupViewCache.Cache = make(map[string]string, size*2) // Initialize a clean map
+	LookupViewCache.Lock.Unlock()                           // RW
 
 	return
 }
@@ -189,4 +204,25 @@ func getRRCache(key string) (rr dns.RR, ok bool) {
 	rr, ok = RRCache.Cache[key]
 	RRCache.Lock.RUnlock() // RO
 	return rr, ok
+}
+
+// setLookupQWCache updates the "back end" cache with matching strings.
+func setLookupViewCache(key string, s string) {
+	LookupViewCache.Lock.Lock()                                       // RW
+	needClear := len(LookupViewCache.Cache) > LookupViewCache.MaxSize // Check cache size while we are locked
+	if needClear {
+		log.Printf("Clearing LookupViewCache due to size\n")
+		LookupViewCache.Cache = make(map[string]string, LookupViewCache.MaxSize) // Initialize a clean map
+	}
+	LookupViewCache.Cache[key] = s
+	LookupViewCache.Lock.Unlock() // RW
+	return
+}
+
+// getLookupBECache reads from the "back end" cache; only use results if "ok" is true
+func getLookupViewCache(key string) (s string, ok bool) {
+	LookupViewCache.Lock.RLock() // RO
+	s, ok = LookupViewCache.Cache[key]
+	LookupViewCache.Lock.RUnlock() // RO
+	return s, ok
 }

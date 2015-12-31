@@ -13,6 +13,23 @@ import (
 
 var NOTRACE = NewLookupTraceOff() // Reuse this across GSLB requests
 
+// findViewOnly will cache.
+func findViewOnly(ipString string) (view string) {
+	ip, _, err := net.SplitHostPort(ipString)
+	if err == nil {
+		ipString = ip // With the :portnumber removed.
+	}
+
+	if val, ok := getLookupViewCache(ipString); ok {
+		return val
+	}
+	view, _, _ = findView(ipString) // view,asn,ispname
+	if view != "" {
+		setLookupViewCache(ipString, view)
+	}
+	return view
+}
+
 func findView(ipString string) (view string, asnString string, ispString string) {
 	//fmt.Printf("findView(%s)\n", ipString)
 	ip, _, err := net.SplitHostPort(ipString)
@@ -73,7 +90,7 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	qtypeStr := "UNKNOWN"               // Default until we know better
 	qnameLC := toLower(qname)           // We will ask for lowercase everything internally.
 
-	view, _, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
+	view := findViewOnly(ipString) // Geo + Resolver -> which data name in zone.conf
 
 	m := new(dns.Msg)
 	m.SetReply(r)
