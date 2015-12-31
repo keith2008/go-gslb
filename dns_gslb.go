@@ -126,7 +126,8 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	}
 
 	// Go do real computational work to see what our records should say.
-	stuff := LookupFrontEnd(qnameLC, view, qtypeStr, 0, NOTRACE)
+	// stuff := LookupFrontEnd(qnameLC, view, qtypeStr, 0, NOTRACE)
+	stuff := LookupFrontEndNoCache(qnameLC, view, qtypeStr, 0, NOTRACE)
 
 	// Copy the results to fully formed RRs and stuff them into our
 	// message.

@@ -17,8 +17,9 @@ type LookupBEKey struct {
 
 // LookupBECacheType is a cache for holding expanded strings from zone data
 type LookupBECacheType struct {
-	Lock  sync.RWMutex
-	Cache map[LookupBEKey][]string
+	Lock    sync.RWMutex
+	Cache   map[LookupBEKey][]string
+	MaxSize int
 }
 
 // LookupFEKey is a map key for LookupFECache
@@ -37,8 +38,9 @@ type LookupFECacheType struct {
 
 // LookupQWCacheType is a cache for holding tokenized strings
 type LookupQWCacheType struct {
-	Lock  sync.RWMutex
-	Cache map[string][]string
+	Lock    sync.RWMutex
+	Cache   map[string][]string
+	MaxSize int
 }
 
 // LookupQWCacheType is a cache for holding tokenized strings
@@ -50,8 +52,9 @@ type LookupViewCacheType struct {
 
 // RRCacheType is a cache for holding DNS resource records parsed from strings
 type RRCacheType struct {
-	Lock  sync.RWMutex
-	Cache map[string]dns.RR
+	Lock    sync.RWMutex
+	Cache   map[string]dns.RR
+	MaxSize int
 }
 
 type MsgCacheRecord struct {
@@ -64,8 +67,9 @@ type MsgCacheKey struct {
 	qtype uint16
 }
 type MsgCacheType struct {
-	Lock  sync.RWMutex
-	Cache map[MsgCacheKey]MsgCacheRecord
+	Lock    sync.RWMutex
+	Cache   map[MsgCacheKey]MsgCacheRecord
+	MaxSize int
 }
 
 // LookupBECache is the "backend" cache for generic "Get me all records for this name and view"
@@ -98,36 +102,41 @@ func InitCaches(reason string, size int) {
 	log.Printf("InitCaches cache: %s\n", reason)
 
 	// Front End cache
-	LookupFECache.Lock.Lock()                                         // RW
-	LookupFECache.Cache = make(map[LookupFEKey]LookupResults, size*2) // Initialize a clean map
-	LookupFECache.MaxSize = size                                      // Set the upper limit on size until we purge
-	LookupFECache.Lock.Unlock()                                       // RW
+	LookupFECache.Lock.Lock()                                                        // RW
+	LookupFECache.MaxSize = size                                                     // Set the upper limit on size until we purge
+	LookupFECache.Cache = make(map[LookupFEKey]LookupResults, LookupFECache.MaxSize) // Initialize a clean map
+	LookupFECache.Lock.Unlock()                                                      // RW
 
 	// Back End cache
-	LookupBECache.Lock.Lock()                                    // RW
-	LookupBECache.Cache = make(map[LookupBEKey][]string, size*2) // Initialize a clean map
-	LookupBECache.Lock.Unlock()                                  // RW
+	LookupBECache.Lock.Lock()                                                   // RW
+	LookupBECache.MaxSize = size                                                // Set the upper limit on size until we purge
+	LookupBECache.Cache = make(map[LookupBEKey][]string, LookupBECache.MaxSize) // Initialize a clean map
+
+	LookupBECache.Lock.Unlock() // RW
 
 	// Quoted Words parser cache
-	LookupQWCache.Lock.Lock()                               // RW
-	LookupQWCache.Cache = make(map[string][]string, size*2) // Initialize a clean map
-	LookupQWCache.Lock.Unlock()                             // RW
+	LookupQWCache.Lock.Lock()                                              // RW
+	LookupQWCache.MaxSize = size                                           // Set the upper limit on size until we purge
+	LookupQWCache.Cache = make(map[string][]string, LookupQWCache.MaxSize) // Initialize a clean map
+	LookupQWCache.Lock.Unlock()                                            // RW
 
 	// Quoted Words parser cache
-	RRCache.Lock.Lock()                             // RW
-	RRCache.Cache = make(map[string]dns.RR, size*2) // Initialize a clean map
-	RRCache.Lock.Unlock()                           // RW
+	RRCache.Lock.Lock()                                      // RW
+	RRCache.MaxSize = size                                   // Set the upper limit on size until we purge
+	RRCache.Cache = make(map[string]dns.RR, RRCache.MaxSize) // Initialize a clean map
+	RRCache.Lock.Unlock()                                    // RW
 
 	// IP to zone cache
-	LookupViewCache.Lock.Lock()                             // RW
-	LookupViewCache.Cache = make(map[string]string, size*2) // Initialize a clean map
-	LookupViewCache.MaxSize = size                          // Set the upper limit on size until we purge
-	LookupViewCache.Lock.Unlock()                           // RW
+	LookupViewCache.Lock.Lock()                                              // RW
+	LookupViewCache.MaxSize = size                                           // Set the upper limit on size until we purge
+	LookupViewCache.Cache = make(map[string]string, LookupViewCache.MaxSize) // Initialize a clean map
+	LookupViewCache.Lock.Unlock()                                            // RW
 
 	// Compiled DNS response messages
-	MsgCache.Lock.Lock()                                          // RW
-	MsgCache.Cache = make(map[MsgCacheKey]MsgCacheRecord, size*2) // Initialize a clean map
-	MsgCache.Lock.Unlock()                                        // RW
+	MsgCache.Lock.Lock()                                                    // RW
+	MsgCache.MaxSize = size                                                 // Set the upper limit on size until we purge
+	MsgCache.Cache = make(map[MsgCacheKey]MsgCacheRecord, MsgCache.MaxSize) // Initialize a clean map
+	MsgCache.Lock.Unlock()                                                  // RW
 
 	return
 }
@@ -150,7 +159,11 @@ func ClearCaches(reason string) {
 // setLookupBECache updates the "back end" cache with matching strings.
 func setLookupBECache(askedName string, view string, skipHC bool, s []string) {
 	key := LookupBEKey{askedName, view, skipHC}
-	LookupBECache.Lock.Lock() // RW
+	LookupBECache.Lock.Lock()                             // RW
+	if len(LookupBECache.Cache) > LookupBECache.MaxSize { // Reset cache when too big
+		Debugf("Resetting LookupBECache.Cache, has %v entries\n", len(LookupBECache.Cache))
+		LookupBECache.Cache = make(map[LookupBEKey][]string, LookupBECache.MaxSize) // Initialize a clean map
+	}
 	LookupBECache.Cache[key] = s
 	LookupBECache.Lock.Unlock() // RW
 	return
@@ -170,14 +183,13 @@ func setLookupFECache(askedName string, view string, qtype string, s LookupResul
 	key := LookupFEKey{askedName, view, qtype}
 
 	// Do as little as possible inside the lock
-	LookupFECache.Lock.Lock()                                     // RW
-	LookupFECache.Cache[key] = s                                  // Store LookupResults
-	needClear := len(LookupFECache.Cache) > LookupFECache.MaxSize // Check cache size while we are locked
-	LookupFECache.Lock.Unlock()                                   // RW
-	if needClear {                                                // If the cache is huge, flush it.
-		ClearCaches("FE cache grew too big") // And ignore the cache write.
+	LookupFECache.Lock.Lock()                             // RW
+	if len(LookupFECache.Cache) > LookupFECache.MaxSize { // Reset cache when too big
+		Debugf("Resetting LookupFECache.Cache, has %v entries\n", len(LookupFECache.Cache))
+		LookupFECache.Cache = make(map[LookupFEKey]LookupResults, LookupFECache.MaxSize) // Initialize a clean map
 	}
-
+	LookupFECache.Cache[key] = s // Store LookupResults
+	LookupFECache.Lock.Unlock()  // RW
 	return
 }
 
@@ -199,7 +211,11 @@ func getLookupFECache(askedName string, view string, qtype string) (s LookupResu
 
 // setLookupQWCache updates the "back end" cache with matching strings.
 func setLookupQWCache(key string, s []string) {
-	LookupQWCache.Lock.Lock() // RW
+	LookupQWCache.Lock.Lock()                             // RW
+	if len(LookupQWCache.Cache) > LookupQWCache.MaxSize { // Reset cache when too big
+		Debugf("Resetting LookupQWCache.Cache, has %v entries\n", len(LookupQWCache.Cache))
+		LookupQWCache.Cache = make(map[string][]string, LookupQWCache.MaxSize) // Initialize a clean map
+	}
 	LookupQWCache.Cache[key] = s
 	LookupQWCache.Lock.Unlock() // RW
 	return
@@ -215,7 +231,11 @@ func getLookupQWCache(key string) (s []string, ok bool) {
 
 // setLookupQWCache updates the "back end" cache with matching strings.
 func setRRCache(key string, rr dns.RR) {
-	RRCache.Lock.Lock() // RW
+	RRCache.Lock.Lock()                       // RW
+	if len(RRCache.Cache) > RRCache.MaxSize { // Reset cache when too big
+		Debugf("Resetting RRCache.Cache, has %v entries\n", len(RRCache.Cache))
+		RRCache.Cache = make(map[string]dns.RR, RRCache.MaxSize) // Initialize a clean map
+	}
 	RRCache.Cache[key] = rr
 	RRCache.Lock.Unlock() // RW
 	return
@@ -231,10 +251,9 @@ func getRRCache(key string) (rr dns.RR, ok bool) {
 
 // setLookupQWCache updates the "back end" cache with matching strings.
 func setLookupViewCache(key string, s string) {
-	LookupViewCache.Lock.Lock()                                       // RW
-	needClear := len(LookupViewCache.Cache) > LookupViewCache.MaxSize // Check cache size while we are locked
-	if needClear {
-		log.Printf("Clearing LookupViewCache due to size\n")
+	LookupViewCache.Lock.Lock()                               // RW
+	if len(LookupViewCache.Cache) > LookupViewCache.MaxSize { // Reset cache when too big
+		Debugf("Resetting LookupViewCache.Cache, has %v entries\n", len(LookupViewCache.Cache))
 		LookupViewCache.Cache = make(map[string]string, LookupViewCache.MaxSize) // Initialize a clean map
 	}
 	LookupViewCache.Cache[key] = s
@@ -261,7 +280,11 @@ func getMsgCache(qname string, view string, qtype uint16) (msg []byte, rcodeStr 
 }
 func setMsgCache(qname string, view string, qtype uint16, msg []byte, rcodeStr string) {
 	key := MsgCacheKey{qname: qname, view: view, qtype: qtype}
-	MsgCache.Lock.Lock() // RW
+	MsgCache.Lock.Lock()                        // RW
+	if len(MsgCache.Cache) > MsgCache.MaxSize { // Reset cache when too big
+		Debugf("Resetting MsgCache.Cache, has %v entries\n", len(MsgCache.Cache))
+		MsgCache.Cache = make(map[MsgCacheKey]MsgCacheRecord, MsgCache.MaxSize) // Initialize a clean map
+	}
 	MsgCache.Cache[key] = MsgCacheRecord{msg: msg, rcodeStr: rcodeStr}
 	MsgCache.Lock.Unlock() // RW
 }
