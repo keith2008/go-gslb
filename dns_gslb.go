@@ -152,7 +152,6 @@ func statsMsg(reply *dns.Msg) {
 	}
 
 	if isResponse {
-		statsResponse.Increment(qtypeStr)
 		statsResponse.Increment(RcodeStr)
 
 		/*
@@ -172,7 +171,6 @@ func statsMsg(reply *dns.Msg) {
 		}
 	} else {
 		statsQuery.Increment(qtypeStr)
-		statsQuery.Increment(RcodeStr)
 
 	}
 
