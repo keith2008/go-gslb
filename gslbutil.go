@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"strings"
 	"time"
@@ -65,7 +66,7 @@ func FileModifiedInfo(name string) (fileInfo FileInfoType, ok bool) {
 // QuotedStringToWords converts a string into roughly shellwords.
 func QuotedStringToWords(s string) []string {
 	// Maybe we have this already.  One can hope, at least.
-	if v, ok := getLookupQWCache(s); ok {
+	if v, ok := CacheQW.Get(s); ok {
 		return v
 	}
 
@@ -88,7 +89,7 @@ func QuotedStringToWords(s string) []string {
 	m := strings.FieldsFunc(s, f)
 
 	// Save for next time.
-	setLookupQWCache(s, m)
+	CacheQW.Set(s, m)
 
 	return m
 }
@@ -118,22 +119,37 @@ func indentSpaces(c int) string {
 	return s
 }
 
+// toLower Faster than strings.ToLower
+func toLower(s string) string {
+	b := make([]byte, len(s))
+	for i := range b {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		b[i] = c
+	}
+	return string(b)
+}
 
-func toLower(s string) string { 
-  b := make([]byte, len(s)) 
-  for i := range b { 
-    c := s[i] 
-    if c >= 'A' && c <= 'Z' { c += 'a' - 'A' } 
-    b[i] = c 
-  } 
-  return string(b) 
-} 
-func toUpper(s string) string { 
-  b := make([]byte, len(s)) 
-  for i := range b { 
-    c := s[i] 
-    if c >= 'a' && c <= 'z' { c -= 'a' - 'A' } 
-    b[i] = c 
-  } 
-  return string(b) 
-} 
+// toUpper Faster than strings.ToUpper
+func toUpper(s string) string {
+	b := make([]byte, len(s))
+	for i := range b {
+		c := s[i]
+		if c >= 'a' && c <= 'z' {
+			c -= 'a' - 'A'
+		}
+		b[i] = c
+	}
+	return string(b)
+}
+
+// Sleep but with a +/- 10% variance of the specified time.
+// We want our jobs to stagger a bit.
+func SleepWithVariance(t time.Duration) {
+	// Sleep some - vary the amounts a bit.
+	amt := 0.9 + rand.Float64()/5.0       // 0.9x to 1.1x
+	t2 := time.Duration(float64(t) * amt) // .. of the original amount
+	time.Sleep(t2)
+}

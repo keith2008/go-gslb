@@ -171,6 +171,20 @@ func BenchmarkLookupShort(b *testing.B) {
 	}
 }
 
+func BenchmarkLookupShortWithTrace(b *testing.B) {
+	// Expensive stuff first
+	initGlobal("t/etc")
+	b.ResetTimer()
+
+	// Now loop the important part of the benchmark
+	for n := 0; n < b.N; n++ {
+		trace := NewLookupTrace()
+
+		_ = LookupFrontEnd("ipv4.master.test-ipv6.com", "comcast", "A", 0, trace)
+
+	}
+}
+
 func BenchmarkLookupLong(b *testing.B) {
 	// Expensive stuff first
 	initGlobal("t/etc")
@@ -180,46 +194,6 @@ func BenchmarkLookupLong(b *testing.B) {
 	// Now loop the important part of the benchmark
 	for n := 0; n < b.N; n++ {
 		_ = LookupFrontEnd("test-ipv6.com", "comcast", "A", 0, notrace)
-
-	}
-}
-
-// Compare a ew things
-// QuotedStringToWords(s)
-// map[string]..
-// simple dumb array
-
-func BenchmarkQWuncached(b *testing.B) {
-	// Expensive stuff first
-	initGlobal("t/etc")
-
-	s := "SOA ns1.test-ipv6.com. jfesler.test-ipv6.com. 2010050801 10800 3600 604800 86400"
-	b.ResetTimer()
-
-	// Now loop the important part of the benchmark
-	for n := 0; n < b.N; n++ {
-		_ = QuotedStringToWords(s)
-
-	}
-}
-
-func BenchmarkQWcached(b *testing.B) {
-	// Expensive stuff first
-	initGlobal("t/etc")
-
-	s := ""
-	v := []string{}
-	for i := 1; i < 1000; i++ {
-		s = fmt.Sprintf("SOA ns1.test-ipv6.com. jfesler.test-ipv6.com. 2010050801 10800 3600 604800 %v", i)
-		v = QuotedStringToWords(s)
-		setLookupQWCache(s, v)
-	}
-
-	b.ResetTimer()
-
-	// Now loop the important part of the benchmark
-	for n := 0; n < b.N; n++ {
-		v, _ = getLookupQWCache(s)
 
 	}
 }

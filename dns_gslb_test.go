@@ -93,9 +93,9 @@ func BenchmarkFindView(b *testing.B) {
 func BenchmarkFindViewCached(b *testing.B) {
 	ip := "50.184.213.245:12345"
 	_, asn, _ := findView(ip)
-	setLookupViewCache(ip, asn)
+	CacheView.Set(ip, asn)
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		_, _ = getLookupViewCache(ip)
+		_, _ = CacheView.Get(ip)
 	}
 }

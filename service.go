@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"net/http"
 	"sort"
 	"strings"
@@ -71,11 +70,7 @@ func backgroundServiceCheck(service string, target string, secs int) {
 			Debugf("Lost our place! service %s target %s status %v changed %v err %v\n", service, target, status, changed, err)
 			return // Exit goroutine, we have no more work.
 		}
-
-		// Sleep some - vary the amounts a bit.
-		amt := 0.9 + rand.Float64()/5.0       // 0.9x to 1.1x
-		t2 := time.Duration(float64(t) * amt) // .. of the original amount
-		time.Sleep(t2)
+		SleepWithVariance(t)
 
 	}
 }

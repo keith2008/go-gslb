@@ -11,7 +11,10 @@ import (
 	"github.com/miekg/dns"
 )
 
-var NOTRACE = NewLookupTraceOff() // Reuse this across GSLB requests
+// NOTRACE is a shared trace config (basically: "no trace") that has no need to share the audit trail.
+// No trail = shared across all instances without regards to thread safety;
+// and just slightly less malloc'ing on function invocation.
+var NOTRACE = NewLookupTraceOff()
 
 // findViewOnly will cache.
 func findViewOnly(ipString string) (view string) {
@@ -19,17 +22,19 @@ func findViewOnly(ipString string) (view string) {
 	if err == nil {
 		ipString = ip // With the :portnumber removed.
 	}
-
-	if val, ok := getLookupViewCache(ipString); ok {
+	if val, ok := CacheView.Get(ipString); ok {
 		return val
 	}
 	view, _, _ = findView(ipString) // view,asn,ispname
 	if view != "" {
-		setLookupViewCache(ipString, view)
+		CacheView.Set(ipString, view)
 	}
 	return view
 }
 
+// findView will (for a given IP string) return the "view" (ie, "comcast" or "default",
+// the asn number (as a string), and the ISP info (as a string).
+// This is not cached.
 func findView(ipString string) (view string, asnString string, ispString string) {
 	//fmt.Printf("findView(%s)\n", ipString)
 	ip, _, err := net.SplitHostPort(ipString)
@@ -62,8 +67,7 @@ func ourNewRR(s string) (dns.RR, error) {
 	// This is critical to avoid leaking
 	// old queries to new (related to
 	// the vixie 0x20 hack)
-
-	if found, ok := getRRCache(s); ok {
+	if found, ok := CacheRR.Get(s); ok {
 		deep := dns.Copy(found)
 		return deep, nil
 
@@ -71,7 +75,7 @@ func ourNewRR(s string) (dns.RR, error) {
 	// Even a fresh instance will be deep copied.
 	parsed, err := dns.NewRR(s)
 	if err == nil {
-		setRRCache(s, parsed)
+		CacheRR.Set(s, parsed)
 	}
 	deep := dns.Copy(parsed)
 	return deep, err
@@ -91,14 +95,15 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	qtypeStr := qtypeToString(qtype)    // What are we asking for? A STRING!
 	qnameLC := toLower(qname)           // We will ask for lowercase everything internally.
 	wasLC := qname == qnameLC           // We really care about the case that people us when asking.
+	view := findViewOnly(ipString)      // Geo + Resolver -> which data name in zone.conf
 
-	view := findViewOnly(ipString) // Geo + Resolver -> which data name in zone.conf
+	QI := QueryInfo{qname: qname, view: view, qtype: qtypeStr}
 
 	// Hey.  Maybe we can return cached data?
 	if wasLC {
-		if cachedBytes, cachedRcodeStr, ok := getMsgCache(qname, view, qtype); ok {
+		if cached, ok := CacheMsg.Get(QI); ok {
 			// Make a copy, but with modified header
-			bits := int(cachedBytes[2])
+			bits := int(cached.msg[2])
 			if r.RecursionDesired {
 				bits = bits | 0x01 // Set RD
 			} else {
@@ -107,12 +112,12 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 			_ = bits
 
 			newLeader := []byte{uint8(r.Id >> 8), uint8(r.Id & 0xff), uint8(bits)}
-			newData := append(newLeader, cachedBytes[3:]...)
+			newData := append(newLeader, cached.msg[3:]...)
 			w.Write(newData)
 
 			// Don't forget the stats.
 			statsQuery.Increment(qtypeStr)
-			statsResponse.Increment(cachedRcodeStr)
+			statsResponse.Increment(cached.rcodeStr)
 
 			return
 		}
@@ -187,8 +192,8 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	if wasLC == true && len(stuff.Ans) < 2 {
 		// Hey, we can cache this.
 		// No MixEdCaSE and no DNS Round Robin.
-		rcodeStr := rcodeToString(stuff.Rcode)          // For stats
-		setMsgCache(qname, view, qtype, data, rcodeStr) // Needs only minor fixups to serve again
+		rcodeStr := rcodeToString(stuff.Rcode) // For stats
+		CacheMsg.Set(QI, MsgCacheRecord{msg: data, rcodeStr: rcodeStr})
 	}
 
 	w.Write(data)

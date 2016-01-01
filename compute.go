@@ -53,18 +53,20 @@ type LookupResults struct {
 // myNSRe is used to find NS targets in a string of text
 var myNSRe = regexp.MustCompile(`\bNS\s+(\S+)`) // Used for finding NS to add glue
 
-// Used when tracing lookups
+// LookupTrace holds trace information
 type LookupTrace struct {
-	recursion int
-	trace     []string
+	// recursion int
+	trace []string
 }
 
-// NewLookupTrace provides a new tracing object
+// NewLookupTrace provides a new tracing object, with tracing enabled.
 func NewLookupTrace() *LookupTrace {
 	n := new(LookupTrace)
 	n.trace = make([]string, 0, 0)
 	return n
 }
+
+// NewLookupTraceOff provides a new tracing object, but without tracing enabled.
 func NewLookupTraceOff() *LookupTrace {
 	n := new(LookupTrace)
 	return n
@@ -84,6 +86,9 @@ func (n *LookupTrace) Add(recursion int, s string) {
 		}
 	}
 }
+
+// Addf adds a line of trace inforation to the query, with complete formatting.
+// Allows us to defer the cost of sprintf until we know if we want the data.
 func (n *LookupTrace) Addf(recursion int, format string, a ...interface{}) {
 	if n.trace != nil {
 		s := fmt.Sprintf(format, a...)
@@ -94,7 +99,7 @@ func (n *LookupTrace) Addf(recursion int, format string, a ...interface{}) {
 // LookupFrontEnd will return a set of results based on the asked name, the ISP name, the query class, and query type.
 // If cached, we can expect to see the DNS "Answers" action to rotate every time this result is fetched (done by cache layer)
 // Results are cached; don't modify the underlying store.
-func LookupFrontEnd(qname string, view string, qtype string, recursion int, trace *LookupTrace) LookupResults {
+func LookupFrontEnd(qname string, view string, qtypeStr string, recursion int, trace *LookupTrace) LookupResults {
 	qname = toLower(qname)
 
 	// Canonicalize query to not include the ".";
@@ -104,15 +109,20 @@ func LookupFrontEnd(qname string, view string, qtype string, recursion int, trac
 	if strings.HasSuffix(qname, ".") {
 		qname = qname[0 : len(qname)-1] // Strip the "." at the end
 	}
+
+	// Check the cache.  This cache may go away soon,
+	// since the packet-level cache is now in place.
+	QI := QueryInfo{qname: qname, view: view, qtype: qtypeStr}
 	if trace.trace == nil { // Skip when tracing, otherwise try and read/return the cache
-		cached, ok := getLookupFECache(qname, view, qtype)
+		cached, ok := CacheLookupFE.Get(QI)
 		if ok {
 			return cached
 		}
 	}
-	ret := LookupFrontEndNoCache(qname, view, qtype, recursion+1, trace) // Results are final
-	setLookupFECache(qname, view, qtype, ret)                            // Dump to cache
-	return ret                                                           // And return
+
+	ret := LookupFrontEndNoCache(qname, view, qtypeStr, recursion+1, trace) // Results are final
+	CacheLookupFE.Set(QI, ret)                                              // Dump to cache
+	return ret                                                              // And return
 }
 
 // LookupFrontEndNoCache takes a query for a given name, view, class, and qtype;
@@ -409,7 +419,8 @@ func LookupBackEnd(qname string, view string, skipHC bool, zoneRef *Config, recu
 	}
 
 	// Check the cache. If found, return the cached values.
-	if cached, ok := getLookupBECache(qname, view, skipHC); ok {
+	QI := LookupBEKey{qname: qname, view: view, skipHC: skipHC}
+	if cached, ok := CacheLookupBE.Get(QI); ok {
 		return cached
 	}
 
@@ -536,7 +547,7 @@ func LookupBackEnd(qname string, view string, skipHC bool, zoneRef *Config, recu
 	// we can count on the front end layer to cache repeated queries to the same
 	// name.
 	if len(returnData) > 0 {
-		setLookupBECache(qname, view, skipHC, returnData)
+		CacheLookupBE.Set(QI, returnData)
 	}
 	return returnData
 }
