@@ -224,8 +224,7 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 				group = append(group, freshMsgCacheRecord(data, rcodeStr))
 			}
 		}
-		CacheMsgs.Set(QI, group)                                        // TODO KEEP
-		CacheMsg.Set(QI, MsgCacheRecord{msg: data, rcodeStr: rcodeStr}) // TODO REMOVE
+		CacheMsgs.Set(QI, group)
 	}
 
 	w.Write(data)

@@ -5,7 +5,6 @@
 //\\//go:generated doit templated_cache_LookupBEKey_strings.go      KEYTYPE=LookupBEKey VALTYPE=[]string VALNAME=strings  VALDEFAULT=[]string{}
 //\\//go:generated doit templated_cache_QueryInfo_LookupResults.go  KEYTYPE=QueryInfo VALTYPE=LookupResults VALNAME=LookupResults  VALDEFAULT=LookupResults{}
 //\\//go:generated doit templated_cache_string_dnsRR.go             KEYTYPE=string VALTYPE=dns.RR VALNAME=dnsRR  VALDEFAULT=nil
-//\\//go:generated doit templated_cache_QueryInfo_MsgCacheRecord.go KEYTYPE=QueryInfo VALTYPE=MsgCacheRecord VALNAME=MsgCacheRecord VALDEFAULT=MsgCacheRecord{}
 //\\//go:generated doit templated_cache_QueryInfo_MsgCacheRecords.go KEYTYPE=QueryInfo VALTYPE=[]MsgCacheRecord VALNAME=MsgCacheRecords VALDEFAULT=[]MsgCacheRecord{}
 
 /*
