@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
 	"strings"
@@ -142,6 +143,15 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	// stuff := LookupFrontEnd(qnameLC, view, qtypeStr, 0, NOTRACE)
 	stuff := LookupFrontEndNoCache(qnameLC, view, qtypeStr, 0, NOTRACE)
 
+	// Shuffle, to randomize answers, if we got more than one.
+	if len(stuff.Ans) > 1 {
+		n := len(stuff.Ans)
+		for i := n - 1; i > 0; i-- {
+			j := rand.Intn(i + 1)
+			stuff.Ans[i], stuff.Ans[j] = stuff.Ans[j], stuff.Ans[i]
+		}
+	}
+
 	// Copy the results to fully formed RRs and stuff them into our
 	// message.
 	for _, s := range stuff.Ans {
@@ -171,6 +181,14 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	}
 	m.Rcode = stuff.Rcode
 	m.Authoritative = stuff.Aa
+
+	if len(stuff.Ans) > 1 {
+		n := len(stuff.Ans)
+		for i := n - 1; i > 0; i-- {
+			j := rand.Intn(i + 1)
+			stuff.Ans[i], stuff.Ans[j] = stuff.Ans[j], stuff.Ans[i]
+		}
+	}
 
 	// Finish up.
 	if wasLC {
