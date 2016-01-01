@@ -8,9 +8,9 @@
 //\\//go:generated doit templated_cache_QueryInfo_MsgCacheRecord.go KEYTYPE=QueryInfo VALTYPE=MsgCacheRecord VALNAME=MsgCacheRecord VALDEFAULT=MsgCacheRecord{}
 
 /*
- * This is a template used to create several other source files.
+ * Input template: cache_template.go
+ * Output templates: templated_*.go
  * To update those files from this template, use "go generate cache_template.go"
- *
  */
 
 package main
@@ -109,8 +109,7 @@ func (c *CacheContainer_string_dnsRR) CleanCache() {
 // One maintenance() goroutine is started per cache instance.
 func (c *CacheContainer_string_dnsRR) maintenance() {
 	for {
-		time.Sleep(c.SweepInterval)
-
+		SleepWithVariance(c.SweepInterval)
 		start := time.Now()
 		startSize := len(c.Cache)
 		c.CleanCache()
