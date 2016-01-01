@@ -102,23 +102,24 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 
 	// Hey.  Maybe we can return cached data?
 	if wasLC {
-		if cached, ok := CacheMsg.Get(QI); ok {
-			// Make a copy, but with modified header
-			bits := int(cached.msg[2])
+		if cached, ok := CacheMsgs.Get(QI); ok {
+			j := rand.Intn(len(cached))   // We expect multiple possible results; answer one at random.
+			bits := int(cached[j].msg[2]) // We need to figure out how to set/clear the RD bit
 			if r.RecursionDesired {
 				bits = bits | 0x01 // Set RD
 			} else {
 				bits = bits &^ 0x01 // Clear RD
 			}
-			_ = bits
 
+			// Build new data packet, with the new 3 bytes based on the current
+			// caller; and the remaining bytes on the cached data.
 			newLeader := []byte{uint8(r.Id >> 8), uint8(r.Id & 0xff), uint8(bits)}
-			newData := append(newLeader, cached.msg[3:]...)
+			newData := append(newLeader, cached[j].msg[3:]...)
 			w.Write(newData)
 
 			// Don't forget the stats.
 			statsQuery.Increment(qtypeStr)
-			statsResponse.Increment(cached.rcodeStr)
+			statsResponse.Increment(cached[j].rcodeStr)
 
 			return
 		}
@@ -207,14 +208,38 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
-	if wasLC == true && len(stuff.Ans) < 2 {
+	if wasLC == true {
 		// Hey, we can cache this.
-		// No MixEdCaSE and no DNS Round Robin.
+		// No MixEdCaSE
 		rcodeStr := rcodeToString(stuff.Rcode) // For stats
-		CacheMsg.Set(QI, MsgCacheRecord{msg: data, rcodeStr: rcodeStr})
+
+		group := []MsgCacheRecord{} // Allocate a new set of pointers
+		group = append(group, freshMsgCacheRecord(data, rcodeStr))
+
+		// Calculate the remaining rotations
+		for i := 1; i < len(stuff.Ans); i++ { // We already did "0"
+			m.Answer = append(m.Answer[1:], m.Answer[0]) // One DNS RR rotation
+			data, err = m.Pack()                         // Re-pack the DNS data
+			if err == nil {                              // If no error..
+				group = append(group, freshMsgCacheRecord(data, rcodeStr))
+			}
+		}
+		CacheMsgs.Set(QI, group)                                        // TODO KEEP
+		CacheMsg.Set(QI, MsgCacheRecord{msg: data, rcodeStr: rcodeStr}) // TODO REMOVE
 	}
 
 	w.Write(data)
+}
+
+func dupedata(b []byte) []byte {
+	n := make([]byte, len(b))
+	copy(n, b)
+	return n
+}
+func freshMsgCacheRecord(data []byte, rcodeStr string) (m MsgCacheRecord) {
+	m.msg = dupedata(data)
+	m.rcodeStr = rcodeStr
+	return m
 }
 
 func rcodeToString(rcode int) string {

@@ -32,6 +32,9 @@ var CacheRR = NewCache_string_dnsRR(CacheDefaultSweep)
 // CacheMsg is a cache of DNS responses previously made to clients
 var CacheMsg = NewCache_QueryInfo_MsgCacheRecord(CacheDefaultSweep)
 
+// CacheMsg is a cache of DNS responses previously made to clients
+var CacheMsgs = NewCache_QueryInfo_MsgCacheRecords(CacheDefaultSweep)
+
 // LookupBEKey is a map key for getting expanded strings from zone data
 type LookupBEKey struct {
 	qname  string
