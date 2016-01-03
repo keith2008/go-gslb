@@ -534,9 +534,9 @@ func LookupBackEnd(qname string, view string, skipHC bool, zoneRef *Config, recu
 	} else {
 		// Try wildcards?
 		if len(qname) > 2 && qname[0:2] != "*." { // What about the wildcard?
-			sp := strings.SplitN(qname, ".", 2) // Split the name into the first hostname, and the remainder
-			if len(sp) > 1 {
-				try := "*." + sp[1] // Replace the hostname with a *, only if we found a "."
+			dot := strings.IndexByte(qname, '.') // Cheaper than strings.SplintN, no malloc
+			if dot > -1 && dot < len(qname) {
+				try := "*" + qname[dot:] // no malloc, uses existing stores
 				returnData = LookupBackEnd(try, view, skipHC, zoneRef, recursion+1, trace)
 			}
 		}

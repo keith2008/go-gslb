@@ -5,6 +5,7 @@ package main
 import (
 	//	"fmt"
 	"fmt"
+	"strings"
 	"testing"
 
 	//	"time"
@@ -211,5 +212,47 @@ func BenchmarkLookupNoCacheLong(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		_ = LookupFrontEndNoCache("test-ipv6.com", "comcast", "A", 0, notrace)
 
+	}
+}
+
+func BenchmarkWildard1(b *testing.B) {
+	initGlobal("t/etc")
+	qname := "something.example.org"
+	b.ReportAllocs()
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+
+		if len(qname) > 2 && qname[0:2] != "*." { // What about the wildcard?
+			sp := strings.SplitN(qname, ".", 2) // Split the name into the first hostname, and the remainder
+			if len(sp) > 1 {
+				try := "*." + sp[1] // Replace the hostname with a *, only if we found a "."
+				if try != "*.wildcard.com" {
+					b.Fatal("bad test")
+				}
+			} else {
+				b.Fatal("bad test")
+			}
+		}
+	}
+}
+
+func BenchmarkWildard2(b *testing.B) {
+	initGlobal("t/etc")
+	qname := "something.example.org"
+	b.ReportAllocs()
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+
+		if len(qname) > 2 && qname[0:2] != "*." { // What about the wildcard?
+			dot := strings.IndexByte(qname, '.')
+			if dot > -1 && dot < len(qname) {
+				try := "*" + qname[dot:] // Replace the hostname with a *, only if we found a "."
+				if try != "*.wildcard.com" {
+					b.Fatalf("bad test 1 dot=%v try=%s", dot, try)
+				}
+			} else {
+				b.Fatal("bad test 2")
+			}
+		}
 	}
 }
