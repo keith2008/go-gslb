@@ -46,7 +46,7 @@ func TestBackgroundServiceChecks(t *testing.T) {
 
 func BenchmarkSetStatus(b *testing.B) {
 	initGlobal("t/etc")
-
+	b.ReportAllocs()
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		SetStatus("x", "y", true)
@@ -54,7 +54,7 @@ func BenchmarkSetStatus(b *testing.B) {
 }
 func BenchmarkGetStatus(b *testing.B) {
 	initGlobal("t/etc")
-
+	b.ReportAllocs()
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		_, _ = GetStatus("x", "y")
@@ -63,7 +63,7 @@ func BenchmarkGetStatus(b *testing.B) {
 
 func BenchmarkEmptyFunction(b *testing.B) {
 	initGlobal("t/etc")
-
+	b.ReportAllocs()
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		empty("x", "y", true)

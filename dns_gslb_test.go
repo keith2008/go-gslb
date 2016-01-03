@@ -48,19 +48,9 @@ func TestDNSNewRR(t *testing.T) {
 
 }
 
-func BenchmarkDNSFindView(b *testing.B) {
-	// Expensive stuff first
-	b.ResetTimer()
-
-	// Now loop the important part of the benchmark
-	for n := 0; n < b.N; n++ {
-		_, _, _ = findView("50.84.213.245")
-	}
-}
-
 func BenchmarkDNSNewRR(b *testing.B) {
 	// Expensive stuff first
-
+	b.ReportAllocs()
 	b.ResetTimer()
 
 	// Now loop the important part of the benchmark
@@ -73,7 +63,7 @@ func BenchmarkDNSNewRR(b *testing.B) {
 func BenchmarkDNSCopyRR(b *testing.B) {
 	// Expensive stuff first
 	rr, _ := dns.NewRR("example.com. 3600 IN A 10.2.3.4")
-
+	b.ReportAllocs()
 	b.ResetTimer()
 
 	// Now loop the important part of the benchmark
@@ -82,8 +72,19 @@ func BenchmarkDNSCopyRR(b *testing.B) {
 	}
 }
 
-func BenchmarkFindView(b *testing.B) {
+func BenchmarkFindViewIpNoPort(b *testing.B) {
+	// Expensive stuff first
+	ip := "50.184.213.245"
+	b.ReportAllocs()
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		_, _, _ = findView(ip)
+	}
+}
+
+func BenchmarkFindViewIpPort(b *testing.B) {
 	ip := "50.184.213.245:12345"
+	b.ReportAllocs()
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		_, _, _ = findView(ip)
@@ -94,6 +95,7 @@ func BenchmarkFindViewCached(b *testing.B) {
 	ip := "50.184.213.245:12345"
 	_, asn, _ := findView(ip)
 	CacheView.Set(ip, asn)
+	b.ReportAllocs()
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		_, _ = CacheView.Get(ip)

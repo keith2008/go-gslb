@@ -61,10 +61,11 @@ func TestMaxMindGeoISP(t *testing.T) {
 	}
 }
 
-func BenchmarkGeoASN(b *testing.B) {
+func BenchmarkMaxMindLookup(b *testing.B) {
 	initGlobal("t/etc")
 
 	m, _ := NewMaxMind("t/GeoIPASNum2.csv", "t/GeoIPASNum2v6.csv")
+	b.ReportAllocs()
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		_, _ = m.Lookup("2001:4998::1")

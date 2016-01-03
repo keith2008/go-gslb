@@ -28,7 +28,7 @@ func TestConfigSwapped(t *testing.T) {
 func Benchmark_GlobalConfig(b *testing.B) {
 	// Expensive stuff first
 	initGlobal("t/etc")
-
+	b.ReportAllocs()
 	b.ResetTimer()
 	// Now loop the important part of the benchmark
 	for n := 0; n < b.N; n++ {
@@ -40,7 +40,7 @@ func Benchmark_SetGlobalConfig(b *testing.B) {
 	// Expensive stuff first
 	initGlobal("t/etc")
 	c := GlobalConfig()
-
+	b.ReportAllocs()
 	b.ResetTimer()
 	// Now loop the important part of the benchmark
 	for n := 0; n < b.N; n++ {

@@ -38,6 +38,7 @@ func BenchmarkQuotedStringToWords(b *testing.B) {
 	initGlobal("t/etc")
 
 	// Expensive stuff first
+	b.ReportAllocs()
 	b.ResetTimer()
 
 	// Now loop the important part of the benchmark
@@ -51,6 +52,7 @@ func BenchmarkOurToUpper20(b *testing.B) {
 
 	s := "Hello, World.Hello,"
 	// Expensive stuff first
+	b.ReportAllocs()
 	b.ResetTimer()
 
 	// Now loop the important part of the benchmark
@@ -64,6 +66,7 @@ func BenchmarkOurToUpper40(b *testing.B) {
 
 	s := "Hello, World.Hello, World.Hello, World.H"
 	// Expensive stuff first
+	b.ReportAllocs()
 	b.ResetTimer()
 
 	// Now loop the important part of the benchmark
@@ -77,6 +80,7 @@ func BenchmarkOurToUpper80(b *testing.B) {
 
 	s := "Hello, World.Hello, World.Hello, World.Hello, World.Hello, World.Hello, World.He"
 	// Expensive stuff first
+	b.ReportAllocs()
 	b.ResetTimer()
 
 	// Now loop the important part of the benchmark
@@ -90,6 +94,7 @@ func BenchmarkStringToUpper20(b *testing.B) {
 
 	s := "Hello, World.Hello,"
 	// Expensive stuff first
+	b.ReportAllocs()
 	b.ResetTimer()
 
 	// Now loop the important part of the benchmark
@@ -103,6 +108,7 @@ func BenchmarkStringToUpper40(b *testing.B) {
 
 	s := "Hello, World.Hello, World.Hello, World.H"
 	// Expensive stuff first
+	b.ReportAllocs()
 	b.ResetTimer()
 
 	// Now loop the important part of the benchmark
@@ -116,6 +122,7 @@ func BenchmarkStringToUpper80(b *testing.B) {
 
 	s := "Hello, World.Hello, World.Hello, World.Hello, World.Hello, World.Hello, World.He"
 	// Expensive stuff first
+	b.ReportAllocs()
 	b.ResetTimer()
 
 	// Now loop the important part of the benchmark

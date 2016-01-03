@@ -162,6 +162,7 @@ func BenchmarkLookupShort(b *testing.B) {
 	// Expensive stuff first
 	initGlobal("t/etc")
 	notrace := NewLookupTraceOff() // Needed for Lookup*
+	b.ReportAllocs()
 	b.ResetTimer()
 
 	// Now loop the important part of the benchmark
@@ -171,29 +172,44 @@ func BenchmarkLookupShort(b *testing.B) {
 	}
 }
 
-func BenchmarkLookupShortWithTrace(b *testing.B) {
-	// Expensive stuff first
-	initGlobal("t/etc")
-	b.ResetTimer()
-
-	// Now loop the important part of the benchmark
-	for n := 0; n < b.N; n++ {
-		trace := NewLookupTrace()
-
-		_ = LookupFrontEnd("ipv4.master.test-ipv6.com", "comcast", "A", 0, trace)
-
-	}
-}
-
 func BenchmarkLookupLong(b *testing.B) {
 	// Expensive stuff first
 	initGlobal("t/etc")
 	notrace := NewLookupTraceOff() // Needed for Lookup*
+	b.ReportAllocs()
 	b.ResetTimer()
 
 	// Now loop the important part of the benchmark
 	for n := 0; n < b.N; n++ {
 		_ = LookupFrontEnd("test-ipv6.com", "comcast", "A", 0, notrace)
+
+	}
+}
+
+func BenchmarkLookupNoCacheShort(b *testing.B) {
+	// Expensive stuff first
+	initGlobal("t/etc")
+	notrace := NewLookupTraceOff() // Needed for Lookup*
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	// Now loop the important part of the benchmark
+	for n := 0; n < b.N; n++ {
+		_ = LookupFrontEndNoCache("ipv4.master.test-ipv6.com", "comcast", "A", 0, notrace)
+
+	}
+}
+
+func BenchmarkLookupNoCacheLong(b *testing.B) {
+	// Expensive stuff first
+	initGlobal("t/etc")
+	notrace := NewLookupTraceOff() // Needed for Lookup*
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	// Now loop the important part of the benchmark
+	for n := 0; n < b.N; n++ {
+		_ = LookupFrontEndNoCache("test-ipv6.com", "comcast", "A", 0, notrace)
 
 	}
 }
