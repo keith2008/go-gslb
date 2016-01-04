@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"io"
+	"log"
 	"net"
 	"os"
 	"sort"
@@ -256,6 +257,23 @@ func (m MaxMind) LookupAsnPlusName(s string) (as uint32, isp string) {
 
 	if f < len(a) && bytes.Compare(a[f].start[:], i) <= 0 && bytes.Compare(i, a[f].stop[:]) <= 0 {
 		as = a[f].asnInt
+		if a[f].ispNameStart < 0 {
+			log.Printf("LookupAsnPlusName(%s) %v\n", s, a)
+			return as, ""
+		}
+		if a[f].ispNameStart > len(m.ispNameSlice) {
+			log.Printf("Bad lookup? LookupAsnPlusName(%s) as=%v", s, as)
+			return as, ""
+		}
+		if a[f].ispNameStop < 0 {
+			log.Printf("LookupAsnPlusName(%s) %v\n", s, a)
+			return as, ""
+		}
+		if a[f].ispNameStop > len(m.ispNameSlice) {
+			log.Printf("Bad lookup? LookupAsnPlusName(%s) as=%v", s, as)
+			return as, ""
+		}
+
 		isp = string(m.ispNameSlice[a[f].ispNameStart:a[f].ispNameStop])
 		//	log.Printf("isp name is %s\n", isp)
 	}
