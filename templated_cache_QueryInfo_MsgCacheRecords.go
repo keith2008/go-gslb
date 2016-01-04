@@ -92,6 +92,8 @@ func (c *CacheContainer_QueryInfo_MsgCacheRecords) ClearCache() {
 func (c *CacheContainer_QueryInfo_MsgCacheRecords) CleanCache() {
 	// Scan all the values.  Find the values that are not "Recent".  Purge.
 	c.Lock.Lock() // Read+Write Lock
+	start := time.Now()
+	startSize := len(c.Cache)
 	for k, v := range c.Cache {
 		if v.recent == false {
 			delete(c.Cache, k)
@@ -99,7 +101,11 @@ func (c *CacheContainer_QueryInfo_MsgCacheRecords) CleanCache() {
 			c.Cache[k].recent = false // Mark for next time
 		}
 	}
+	since := time.Since(start)
+	stopSize := len(c.Cache)
 	c.Lock.Unlock()
+	Debugf("Cleaned cache QueryInfo MsgCacheRecords time=%s keys: %v -> %v\n", since.String(), startSize, stopSize)
+
 }
 
 // maintenance() is a background thread that will
@@ -110,12 +116,6 @@ func (c *CacheContainer_QueryInfo_MsgCacheRecords) CleanCache() {
 func (c *CacheContainer_QueryInfo_MsgCacheRecords) maintenance() {
 	for {
 		SleepWithVariance(c.SweepInterval)
-		start := time.Now()
-		startSize := len(c.Cache)
 		c.CleanCache()
-		since := time.Since(start)
-		stopSize := len(c.Cache)
-		Debugf("Cleaned cache QueryInfo MsgCacheRecords time=%s keys: %v -> %v\n", since.String(), startSize, stopSize)
-
 	}
 }
