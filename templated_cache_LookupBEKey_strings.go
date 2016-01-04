@@ -16,6 +16,7 @@
 package main
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -37,14 +38,26 @@ type CacheContainer_LookupBEKey_strings struct {
 	Lock          sync.RWMutex
 	Cache         map[LookupBEKey]*CacheValueContainer_LookupBEKey_strings
 	SweepInterval time.Duration
+	StatsName     string
+	cHit          string
+	cMiss         string
+	cSet          string
+	cFull         string
+	MaxSize       int
 }
 
 // NewCache_LookupBEKey_strings creates a new cache, with a cache sweep
 // performed at SweepInterval to look for unused entries.  Any
 // cache entry not used since the last sweep, is purged.
-func NewCache_LookupBEKey_strings(SweepInterval time.Duration) *CacheContainer_LookupBEKey_strings {
+func NewCache_LookupBEKey_strings(StatsName string, MaxSize int, SweepInterval time.Duration) *CacheContainer_LookupBEKey_strings {
 	c := new(CacheContainer_LookupBEKey_strings)
 	c.SweepInterval = SweepInterval
+	c.StatsName = StatsName
+	c.MaxSize = MaxSize
+	c.cHit = fmt.Sprintf("%s:hit", c.StatsName)
+	c.cMiss = fmt.Sprintf("%s:miss", c.StatsName)
+	c.cSet = fmt.Sprintf("%s:set", c.StatsName)
+	c.cFull = fmt.Sprintf("%s:full", c.StatsName)
 	c.ClearCache()     // Initializes
 	go c.maintenance() // Starts a background threat to keep it tidy
 	return c
@@ -60,8 +73,10 @@ func (c *CacheContainer_LookupBEKey_strings) Get(k LookupBEKey) (v []string, ok 
 	}
 	c.Lock.Unlock()
 	if ok {
+		statsCache.Increment(c.cHit)
 		return vc.val, ok
 	}
+	statsCache.Increment(c.cMiss)
 	return []string{}, false
 }
 
@@ -69,19 +84,45 @@ func (c *CacheContainer_LookupBEKey_strings) Get(k LookupBEKey) (v []string, ok 
 // a value into the cache, and marks the value as "recent" so it survives
 // at least one round of cache maintenance.
 func (c *CacheContainer_LookupBEKey_strings) Set(k LookupBEKey, v []string) {
+	saved := false
 	c.Lock.Lock() // Read+Write Lock
-	n := new(CacheValueContainer_LookupBEKey_strings)
-	n.val = v
-	n.recent = true
-	c.Cache[k] = n
+	if len(c.Cache) < c.MaxSize {
+		n := new(CacheValueContainer_LookupBEKey_strings)
+		n.val = v
+		n.recent = true
+		c.Cache[k] = n
+		saved = true
+	}
 	c.Lock.Unlock()
+	if saved {
+		statsCache.Increment(c.cSet)
+	} else {
+		statsCache.Increment(c.cFull)
+	}
+}
+
+func (c *CacheContainer_LookupBEKey_strings) CheckConfig() {
+	if GlobalConfigAvailable() {
+		config := GlobalConfig()
+		c.Lock.Lock() // Read+Write Lock
+		name := c.StatsName
+		c.Lock.Unlock()
+
+		if val, ok := config.GetSectionNameValueInt("interval", "clean_cache"); ok {
+			c.SetInterval(time.Duration(val) * time.Second)
+		}
+		if val, ok := config.GetSectionNameValueInt("cachesize", name); ok {
+			c.SetMaxSize(val)
+		}
+	}
 }
 
 // ClearCache  immediately and quickly resets
 // the entire cache, releasing the old data.  Go's garbage collection
 // will clean it when no other references to keys or values exist.
 func (c *CacheContainer_LookupBEKey_strings) ClearCache() {
-	c.Lock.Lock() // Read+Write Lock
+	c.CheckConfig() // Get latest values for sleeping, max size
+	c.Lock.Lock()   // Read+Write Lock
 	c.Cache = make(map[LookupBEKey]*CacheValueContainer_LookupBEKey_strings, 16384)
 	c.Lock.Unlock()
 }
@@ -118,4 +159,28 @@ func (c *CacheContainer_LookupBEKey_strings) maintenance() {
 		SleepWithVariance(c.SweepInterval)
 		c.CleanCache()
 	}
+}
+
+func (c *CacheContainer_LookupBEKey_strings) SetMaxSize(MaxSize int) {
+	c.Lock.Lock() // Read+Write Lock
+	c.MaxSize = MaxSize
+	c.Lock.Unlock()
+}
+func (c *CacheContainer_LookupBEKey_strings) GetMaxSize() (MaxSize int) {
+	c.Lock.Lock() // Read+Write Lock
+	MaxSize = c.MaxSize
+	c.Lock.Unlock()
+	return MaxSize
+}
+
+func (c *CacheContainer_LookupBEKey_strings) SetInterval(t time.Duration) {
+	c.Lock.Lock() // Read+Write Lock
+	c.SweepInterval = t
+	c.Lock.Unlock()
+}
+func (c *CacheContainer_LookupBEKey_strings) GetInterval() time.Duration {
+	c.Lock.Lock() // Read+Write Lock
+	t := c.SweepInterval
+	c.Lock.Unlock()
+	return t
 }

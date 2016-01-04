@@ -14,23 +14,23 @@ import (
 var CacheDefaultSweep = time.Duration(5) * time.Second
 
 // CacheLookupBE implements the "back end" search cache
-var CacheLookupBE = NewCache_LookupBEKey_strings(CacheDefaultSweep)
+var CacheLookupBE = NewCache_LookupBEKey_strings("backend", 10000, CacheDefaultSweep)
 
 // CacheLookupFE implmenets the "Front End" (after NS glue, with rcode) cache
 // This may be removed later if we decide the dns.Pack byte cache is adequate
-var CacheLookupFE = NewCache_QueryInfo_LookupResults(CacheDefaultSweep)
+var CacheLookupFE = NewCache_QueryInfo_LookupResults("frontend", 10000, CacheDefaultSweep)
 
 // CacheQW is a cache of parsed string -> words
-var CacheQW = NewCache_string_strings(CacheDefaultSweep)
+var CacheQW = NewCache_string_strings("quoting", 10000, CacheDefaultSweep)
 
 // CacheView is a cache of IP address -> view name
-var CacheView = NewCache_string_string(CacheDefaultSweep)
+var CacheView = NewCache_string_string("views", 10000, CacheDefaultSweep)
 
 // CacheRR is a cache of RR strings -> compiled dns.RR objects
-var CacheRR = NewCache_string_dnsRR(CacheDefaultSweep)
+var CacheRR = NewCache_string_dnsRR("dnsrr", 10000, CacheDefaultSweep)
 
 // CacheMsg is a cache of DNS responses previously made to clients
-var CacheMsgs = NewCache_QueryInfo_MsgCacheRecords(CacheDefaultSweep)
+var CacheMsgs = NewCache_QueryInfo_MsgCacheRecords("dnsmsg", 10000, CacheDefaultSweep)
 
 // LookupBEKey is a map key for getting expanded strings from zone data
 type LookupBEKey struct {
