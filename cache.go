@@ -11,7 +11,7 @@ import (
  */
 
 // Default interval we use for sweeping up the cache
-var CacheDefaultSweep = time.Duration(30) * time.Second
+var CacheDefaultSweep = time.Duration(5) * time.Second
 
 // CacheLookupBE implements the "back end" search cache
 var CacheLookupBE = NewCache_LookupBEKey_strings(CacheDefaultSweep)
