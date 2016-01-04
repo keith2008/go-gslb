@@ -75,6 +75,11 @@ func GlobalConfig() *Config {
 	return Global.Config.Load().(*Config)
 }
 
+func GlobalConfigAvailable() bool {
+	i := Global.Config.Load()
+	return i != nil
+}
+
 // SetGlobalZoneData safely sets the *Config object (threadsafe)
 func SetGlobalZoneData(c *Config) {
 	Global.ZoneData.Store(c)
