@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/miekg/dns"
@@ -42,8 +43,9 @@ func findView(ipString string) (view string, asnString string, ispString string)
 	if err == nil {
 		ipString = ip // With the :portnumber removed.
 	}
-
-	asnString, ispString = GlobalMaxMind().Lookup(ipString) // AS number and ISP text Name
+	var asn uint32
+	asn, ispString = GlobalMaxMind().LookupAsnPlusName(ipString) // AS number and ISP text Name
+	asnString = strconv.FormatUint(uint64(asn), 10)
 
 	statsMaxMind.Increment(asnString) // Keep track of queries from various service providers.
 
@@ -103,6 +105,7 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	// Hey.  Maybe we can return cached data?
 	if wasLC {
 		if cached, ok := CacheMsgs.Get(QI); ok {
+			statsCache.Increment("gslb-hit")
 			j := rand.Intn(len(cached))   // We expect multiple possible results; answer one at random.
 			bits := int(cached[j].msg[2]) // We need to figure out how to set/clear the RD bit
 			if r.RecursionDesired {
@@ -133,6 +136,7 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	if r.Question[0].Qclass != dns.ClassINET ||
 		r.Question[0].Qtype == dns.TypeAXFR ||
 		r.Question[0].Qtype == dns.TypeIXFR {
+		statsCache.Increment("gslb-refused")
 		m.Rcode = dns.RcodeRefused
 		statsMsg(r)
 		statsMsg(m)
@@ -141,8 +145,8 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	}
 
 	// Go do real computational work to see what our records should say.
-	// stuff := LookupFrontEnd(qnameLC, view, qtypeStr, 0, NOTRACE)
-	stuff := LookupFrontEndNoCache(qnameLC, view, qtypeStr, 0, NOTRACE)
+	// LookupFrontEnd handles some level of caching even if the vixie hack is used
+	stuff := LookupFrontEnd(qnameLC, view, qtypeStr, 0, NOTRACE)
 
 	// Shuffle, to randomize answers, if we got more than one.
 	if len(stuff.Ans) > 1 {
@@ -224,7 +228,10 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 				group = append(group, freshMsgCacheRecord(data, rcodeStr))
 			}
 		}
+		statsCache.Increment("gslb-miss")
 		CacheMsgs.Set(QI, group)
+	} else {
+		statsCache.Increment("gslb-nocache")
 	}
 
 	w.Write(data)

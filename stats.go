@@ -16,6 +16,7 @@ type statsBundleType struct {
 var statsQuery = newStat("query")
 var statsResponse = newStat("response")
 var statsMaxMind = newStat("maxmind")
+var statsCache = newStat("cache")
 
 func (b *statsBundleType) Increment(s string) {
 	b.counters.Add(s, 1)

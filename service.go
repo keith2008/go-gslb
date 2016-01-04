@@ -42,11 +42,11 @@ func AddCheck(service string, target string, secs int) (exists bool) {
 	if _, ok := HealthChecks.Status[ServiceTargetKey{service, target}]; ok {
 		exists = true
 	}
-	HealthChecks.Lock.Unlock() //RW
 	if exists == false {
 		HealthChecks.Status[ServiceTargetKey{service, target}] = false
 		go backgroundServiceCheck(service, target, secs)
 	}
+	HealthChecks.Lock.Unlock() //RW
 	return exists
 }
 
