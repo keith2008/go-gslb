@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"encoding/csv"
 	"io"
-	"log"
 	"net"
 	"os"
 	"sort"
@@ -136,9 +135,8 @@ func (m *MaxMind) loadCsvV4(filename string) error {
 
 		//	Adopt our new record.
 		m.asnInfo = append(m.asnInfo, a) // Add new completed record
-
 	}
-	m.ispNameSlice = m.ispName.Bytes() // In case we want to read from this later!
+	m.ispNameSlice = m.ispName.Bytes() // We use this for reading later, only populate it once.
 	return nil
 }
 
@@ -192,6 +190,7 @@ func (m *MaxMind) loadCsvV6(filename string) error {
 		m.asnInfo = append(m.asnInfo, a) // Add new completed record
 
 	}
+	m.ispNameSlice = m.ispName.Bytes() // We use this for reading later, only populate it once.
 	return nil
 }
 
@@ -234,7 +233,6 @@ func (m MaxMind) LookupAsn(s string) (as uint32) {
 
 	// Do binary search.  "f" will be the offset found.
 	f := sort.Search(len(a), func(key int) bool { return bytes.Compare(a[key].stop[:], i) >= 0 })
-
 	if f < len(a) && bytes.Compare(a[f].start[:], i) <= 0 && bytes.Compare(i, a[f].stop[:]) <= 0 {
 		as = a[f].asnInt
 	}
@@ -251,31 +249,9 @@ func (m MaxMind) LookupAsnPlusName(s string) (as uint32, isp string) {
 
 	// Do binary search.  "f" will be the offset found.
 	f := sort.Search(len(a), func(key int) bool { return bytes.Compare(a[key].stop[:], i) >= 0 })
-	//	fmt.Printf("lookup(%v) %v bytes\n",i,len(i));
-	// log.Printf("LookupAsnPlusName(%s) f=%#v\n", s, f)
-	// log.Printf("%#v", a[f])
-
 	if f < len(a) && bytes.Compare(a[f].start[:], i) <= 0 && bytes.Compare(i, a[f].stop[:]) <= 0 {
 		as = a[f].asnInt
-		if a[f].ispNameStart < 0 {
-			log.Printf("LookupAsnPlusName(%s) %v\n", s, a)
-			return as, ""
-		}
-		if a[f].ispNameStart > len(m.ispNameSlice) {
-			log.Printf("Bad lookup? LookupAsnPlusName(%s) as=%v", s, as)
-			return as, ""
-		}
-		if a[f].ispNameStop < 0 {
-			log.Printf("LookupAsnPlusName(%s) %v\n", s, a)
-			return as, ""
-		}
-		if a[f].ispNameStop > len(m.ispNameSlice) {
-			log.Printf("Bad lookup? LookupAsnPlusName(%s) as=%v", s, as)
-			return as, ""
-		}
-
 		isp = string(m.ispNameSlice[a[f].ispNameStart:a[f].ispNameStop])
-		//	log.Printf("isp name is %s\n", isp)
 	}
 	return
 }

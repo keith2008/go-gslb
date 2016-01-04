@@ -22,6 +22,9 @@ var tableTestMaxMindGeoISP = []struct {
 }{
 	{"50.184.213.245", "Comcast Cable Communications, Inc."},
 	{"2001:4998::1", "Yahoo!"},
+	{"2620:0:cca::17", "OpenDNS, LLC"},
+	{"2600:6:ff82:1:66:1:68:137", "Sprint"},
+	{"2620:0:cca::21", "OpenDNS, LLC"},
 }
 
 func TestMaxMindASN(t *testing.T) {
