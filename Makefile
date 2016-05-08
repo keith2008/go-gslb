@@ -3,6 +3,6 @@ go-gslb:: generate
 	
 	
 generate:
-	rm templated_*.go
+	rm -f templated_*.go
 	go generate *_template.go
 		
