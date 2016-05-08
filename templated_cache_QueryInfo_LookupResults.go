@@ -1,5 +1,5 @@
 //AUTO GENERATED CODE
-//\\//go:generated -command doit command ./mygen.pl cache_template.go
+//\\//go:generated -command doit  ./mygen.pl cache_template.go
 //\\//go:generated doit templated_cache_string_string.go            KEYTYPE=string  VALTYPE=string VALNAME=string VALDEFAULT=""
 //\\//go:generated doit templated_cache_string_strings.go           KEYTYPE=string  VALTYPE=[]string VALNAME=strings VALDEFAULT=nil
 //\\//go:generated doit templated_cache_LookupBEKey_strings.go      KEYTYPE=LookupBEKey VALTYPE=[]string VALNAME=strings  VALDEFAULT=[]string{}
