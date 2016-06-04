@@ -80,7 +80,7 @@ func ourNewRR(s string) (dns.RR, error) {
 	if err == nil {
 		CacheRR.Set(s, parsed)
 		deep := dns.Copy(parsed)
-		return deep, er
+		return deep, err
 	} 
 	return parsed, err
 }
