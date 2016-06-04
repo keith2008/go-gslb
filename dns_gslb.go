@@ -82,6 +82,8 @@ func ourNewRR(s string) (dns.RR, error) {
 		deep := dns.Copy(parsed)
 		return deep, err
 	} 
+	// Failed to parse? Skip the deep copy.
+	log.Printf("Failed to parse RR: '%s'  err=%v\n",s,err);
 	return parsed, err
 }
 
