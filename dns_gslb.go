@@ -79,9 +79,10 @@ func ourNewRR(s string) (dns.RR, error) {
 	parsed, err := dns.NewRR(s)
 	if err == nil {
 		CacheRR.Set(s, parsed)
-	}
-	deep := dns.Copy(parsed)
-	return deep, err
+		deep := dns.Copy(parsed)
+		return deep, er
+	} 
+	return parsed, err
 }
 
 // handleReflectIP responds with the caller's IP address,
