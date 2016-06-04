@@ -127,11 +127,15 @@ func checkHTTPHelper(host string, port string) (bool, error) {
 	seconds := 10
 	timeout := time.Duration(seconds) * time.Second
 	client := &http.Client{Timeout: timeout}
-	hostport, _ := LookupAddressHostPort(host, port) // 192.0.2.1:80 or [2001:db8::1]:80
+	hostport, _ := LookupAddressHostPort(host, port) // Find IP - either internally, or DNS
 	url := "http://" + hostport
+	
+//	log.Printf("checkHTTPHelper checking host %s port %v url %v\n",host,port,url);
 
 	req, err := http.NewRequest("GET", url, nil)
+	req.Host = host // Restore original hostname
 	resp, err := client.Do(req)
+
 	if err != nil {
 		return false, err
 	}
