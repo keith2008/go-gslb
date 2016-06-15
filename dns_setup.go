@@ -33,7 +33,7 @@ func initDNS() {
 	initDNSSpecialHandlers("view", handleView)       // Might have more than one name for specialty responders
 	initDNSSpecialHandlers("maxmind", handleMaxMind) // Might have more than one name for specialty responders
 	initDNSSpecialHandlers("help", handleHelp)       // Might have more than one name for specialty responders
-
+	initDNSSpecialHandlers("break",handleBreak)  // Might have more than one name for specialty responders
 	dns.HandleFunc(".", handleGSLB) // Anything else, send it to the heavier weight processor.
 }
 
