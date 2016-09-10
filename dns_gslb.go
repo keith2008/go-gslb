@@ -43,10 +43,12 @@ func findViewOnly(ipString string) (view string) {
 // the asn number (as a string), and the ISP info (as a string).
 // This is not cached.
 func findView(ipString string) (view string, asnString string, ispString string, countryString string) {
-	defer func() {
-		log.Printf("findView(%s) returning(%s, %s, %s, %s)\n", ipString, view, asnString, ispString, countryString)
-	}()
-	//fmt.Printf("findView(%s)\n", ipString)
+	/*
+		defer func() {
+			log.Printf("findView(%s) returning(%s, %s, %s, %s)\n", ipString, view, asnString, ispString, countryString)
+		}()
+	*/
+
 	ip, _, err := net.SplitHostPort(ipString)
 	if err == nil {
 		ipString = ip // With the :portnumber removed.
