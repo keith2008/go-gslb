@@ -105,7 +105,7 @@ func ourNewRR(s string) (dns.RR, error) {
 	return parsed, err
 }
 
-func getClientInfo(w dns.ResponseWriter, r *dns.Msg) (ipString string, subnetSpecified bool, newSubnetOpt *dns.OPT) {
+func getClientInfo(w dns.ResponseWriter, r *dns.Msg) (ipString string, subnetString string, subnetSpecified bool, newSubnetOpt *dns.OPT) {
 
 	ipString = w.RemoteAddr().String() // The user is from where?. dns.go only gives us strings.
 
@@ -128,18 +128,28 @@ func getClientInfo(w dns.ResponseWriter, r *dns.Msg) (ipString string, subnetSpe
 				newSubnetOpt.Option = append(newSubnetOpt.Option, e)
 				log.Printf("%s used edns0 client subnet to ask instead for %s\n", ipString, e.Address.String())
 				ipString = e.Address.String()
+				subnetString = fmt.Sprintf("%s/%v", ipString, e.SourceNetmask)
 				subnetSpecified = true
 			}
 		}
 	}
-	return ipString, subnetSpecified, newSubnetOpt
+	if subnetString == "" {
+		if strings.Contains(ipString, ":") {
+			subnetString = fmt.Sprintf("%s/128", ipString)
+		} else {
+			subnetString = fmt.Sprintf("%s/32", ipString)
+		}
+	}
+	return ipString, subnetString, subnetSpecified, newSubnetOpt
 }
 
 // handleReflectIP responds with the caller's IP address,
 // in the form of A/AAAA as well as TXT
 func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 
-	ipString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
+	ipString, subnetString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
+	_ = subnetString
+
 	qname := r.Question[0].Name      // This is OUR name; so use it in our response
 	qtype := r.Question[0].Qtype     // What are we asking for?
 	qtypeStr := qtypeToString(qtype) // What are we asking for? A STRING!

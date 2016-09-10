@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"strings"
 
@@ -28,16 +29,21 @@ func handleAS(w dns.ResponseWriter, r *dns.Msg) {
 
 	list := []string{}
 	list = append(list, w.RemoteAddr().String())
-	ipString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
+	ipString, subnetString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
+
+	log.Printf("after getClientInfo, we found ipString=%s subnetString=%v subnetSpecified=%v", ipString, subnetString, subnetSpecified)
+
+	_ = subnetString
 	if subnetSpecified {
 		list = append(list, ipString)
 		m.Extra = append(m.Extra, newSubnetOpt)
 	}
 
 	for _, ipString = range list {
+		log.Printf("ipstring is now %s", ipString)
 		_, asnString, _, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
 		//view, asnString, ispString := findView(ipString) // Geo + Resolver -> which data name in zone.conf
-		txt := fmt.Sprintf("as=%v", asnString)
+		txt := fmt.Sprintf("ip=%s as='%v'", myQuote(parseIpOnly(ipString)), asnString)
 
 		rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+txt+`"`))
 		if err == nil {
@@ -128,14 +134,15 @@ func handleISP(w dns.ResponseWriter, r *dns.Msg) {
 
 	list := []string{}
 	list = append(list, w.RemoteAddr().String())
-	ipString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
+	ipString, subnetString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
+	_ = subnetString
 	if subnetSpecified {
 		list = append(list, ipString)
 		m.Extra = append(m.Extra, newSubnetOpt)
 	}
 	for _, ipString = range list {
 		_, _, txt, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
-		txt = fmt.Sprintf("isp='%s'", txt)
+		txt = fmt.Sprintf("ip=%s isp=%s", myQuote(ipString), myQuote(txt))
 		rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+txt+`"`))
 		if err == nil {
 			m.Answer = append(m.Answer, rr)
@@ -167,7 +174,8 @@ func handleCountry(w dns.ResponseWriter, r *dns.Msg) {
 
 	list := []string{}
 	list = append(list, w.RemoteAddr().String())
-	ipString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
+	ipString, subnetString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
+	_ = subnetString
 	if subnetSpecified {
 		list = append(list, ipString)
 		m.Extra = append(m.Extra, newSubnetOpt)
@@ -175,7 +183,7 @@ func handleCountry(w dns.ResponseWriter, r *dns.Msg) {
 
 	for _, ipString = range list {
 		_, _, _, country := findView(ipString) // Geo + Resolver -> which data name in zone.conf
-		txt := fmt.Sprintf("country='%s'", country)
+		txt := fmt.Sprintf("ip=%s country=%s", myQuote(ipString), myQuote(country))
 		rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+txt+`"`))
 		if err == nil {
 			m.Answer = append(m.Answer, rr)
@@ -186,6 +194,13 @@ func handleCountry(w dns.ResponseWriter, r *dns.Msg) {
 	statsMsg(m)
 	w.WriteMsg(m)
 	return
+}
+
+func parseIpOnly(s string) string {
+	if a, _, err := net.SplitHostPort(s); err == nil {
+		return a
+	}
+	return s
 }
 
 // handleMaxMind replies with ip=74.125.187.158 as=15169 isp='Google Inc.'"
@@ -204,15 +219,18 @@ func handleMaxMind(w dns.ResponseWriter, r *dns.Msg) {
 
 	list := []string{}
 	list = append(list, w.RemoteAddr().String())
-	ipString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
+	ipString, subnetString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
+	log.Printf("after getClientInfo, we found ipString=%s subnetString=%v subnetSpecified=%v", ipString, subnetString, subnetSpecified)
+
+	_ = subnetString
 	if subnetSpecified {
 		list = append(list, ipString)
 		m.Extra = append(m.Extra, newSubnetOpt)
 	}
 	for _, ipString = range list {
-		ipOnly, _, _ := net.SplitHostPort(ipString)
+		log.Printf("ipString is now %s\n", ipString)
 		_, asn, txt, country := findView(ipString) // Geo + Resolver -> which data name in zone.conf
-		txt = fmt.Sprintf("ip=%s as=%s isp='%s' country='%s'", ipOnly, asn, txt, country)
+		txt = fmt.Sprintf("ip=%s as='%v' isp=%s country=%s", myQuote(parseIpOnly(ipString)), asn, myQuote(txt), myQuote(country))
 		rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+txt+`"`))
 		if err == nil {
 			m.Answer = append(m.Answer, rr)
@@ -241,14 +259,15 @@ func handleView(w dns.ResponseWriter, r *dns.Msg) {
 
 	qname := r.Question[0].Name // This is OUR name; so use it in our response
 
-	ipString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
+	ipString, subnetString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
+	_ = subnetString
 	if subnetSpecified {
 		m.Extra = append(m.Extra, newSubnetOpt)
 	}
 
-	txt, _, _, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
-	//view, asnString, ispString := findView(ipString) // Geo + Resolver -> which data name in zone.conf
-	rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+"view="+txt+`"`))
+	view, _, _, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
+	txt := fmt.Sprintf("ip=%s view=%s", myQuote(ipString), myQuote(view))
+	rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+txt+`"`))
 	if err == nil {
 		m.Answer = append(m.Answer, rr)
 	}
@@ -258,6 +277,13 @@ func handleView(w dns.ResponseWriter, r *dns.Msg) {
 	statsMsg(m)
 	w.WriteMsg(m)
 	return
+}
+
+func myQuote(s string) string {
+	s = strings.Replace(s, `"`, `\"`, -1)
+	s = strings.Replace(s, `'`, `\'`, -1)
+	s = `'` + s + `'`
+	return s
 }
 
 // handleIP responds with the caller's IP address,
@@ -291,12 +317,12 @@ func handleIP(w dns.ResponseWriter, r *dns.Msg) {
 		// Only do real work fo-r A, AAAA, and TXT requests.
 
 		if ip, ok := w.RemoteAddr().(*net.UDPAddr); ok {
-			str = fmt.Sprintf("%s (udp)", ip.String())
+			str = fmt.Sprintf("ip=%s protocol=%s", myQuote(ip.String()), myQuote("udp"))
 			a = ip.IP
 			v4 = a.To4() != nil
 		}
 		if ip, ok := w.RemoteAddr().(*net.TCPAddr); ok {
-			str = fmt.Sprintf("%s (tcp)", ip.String())
+			str = fmt.Sprintf("ip=%s protocol=%s", myQuote(ip.String()), myQuote("tcp"))
 			a = ip.IP
 			v4 = a.To4() != nil
 		}
@@ -327,22 +353,9 @@ func handleIP(w dns.ResponseWriter, r *dns.Msg) {
 			m.Extra = append(m.Extra, t)
 		}
 
-		ipString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
+		ipString, subnetString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
 		if subnetSpecified {
-			str = fmt.Sprintf("%s (edns0-client-subnet)", ipString)
-
-			// This is dumb as hell. Why can't I get to this easier?
-			if opt := r.IsEdns0(); opt != nil {
-				for _, o := range opt.Option {
-					switch e := o.(type) {
-					case *dns.EDNS0_NSID:
-						// do stuff with e.Nsid
-					case *dns.EDNS0_SUBNET:
-						str = fmt.Sprintf("%s/%v (edns0-client-subnet)", ipString, e.SourceNetmask)
-					}
-				}
-			}
-
+			str = fmt.Sprintf("ip=%s protocol=%s", myQuote(subnetString), myQuote("edns0-client-subnet"))
 			a = net.ParseIP(ipString)
 			v4 = a.To4() != nil
 
