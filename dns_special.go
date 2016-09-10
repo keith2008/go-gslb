@@ -27,7 +27,7 @@ func handleAS(w dns.ResponseWriter, r *dns.Msg) {
 	qname := r.Question[0].Name // This is OUR name; so use it in our response
 
 	ipString := w.RemoteAddr().String()
-	_, asnString, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
+	_, asnString, _, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
 	//view, asnString, ispString := findView(ipString) // Geo + Resolver -> which data name in zone.conf
 	txt := fmt.Sprintf("as=%v", asnString)
 
@@ -115,7 +115,7 @@ func handleISP(w dns.ResponseWriter, r *dns.Msg) {
 	qname := r.Question[0].Name // This is OUR name; so use it in our response
 
 	ipString := w.RemoteAddr().String()
-	_, _, txt := findView(ipString) // Geo + Resolver -> which data name in zone.conf
+	_, _, txt, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
 	txt = fmt.Sprintf("isp='%s'", txt)
 	rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+txt+`"`))
 	if err == nil {
@@ -146,8 +146,8 @@ func handleMaxMind(w dns.ResponseWriter, r *dns.Msg) {
 	ipString := w.RemoteAddr().String()
 	ipOnly, _, _ := net.SplitHostPort(ipString)
 
-	_, asn, txt := findView(ipString) // Geo + Resolver -> which data name in zone.conf
-	txt = fmt.Sprintf("ip=%s as=%s isp='%s'", ipOnly, asn, txt)
+	_, asn, txt, country := findView(ipString) // Geo + Resolver -> which data name in zone.conf
+	txt = fmt.Sprintf("ip=%s as=%s isp='%s' country=%s", ipOnly, asn, txt, country)
 	rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+txt+`"`))
 	if err == nil {
 		m.Answer = append(m.Answer, rr)
@@ -176,7 +176,7 @@ func handleView(w dns.ResponseWriter, r *dns.Msg) {
 	qname := r.Question[0].Name // This is OUR name; so use it in our response
 
 	ipString := w.RemoteAddr().String()
-	txt, _, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
+	txt, _, _, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
 	//view, asnString, ispString := findView(ipString) // Geo + Resolver -> which data name in zone.conf
 	rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+"view="+txt+`"`))
 	if err == nil {

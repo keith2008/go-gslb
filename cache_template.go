@@ -161,11 +161,14 @@ func (c *CacheContainer_KEYTYPE_VALNAME) maintenance() {
 	}
 }
 
+// SetMaxSize will set the max cache size.
 func (c *CacheContainer_KEYTYPE_VALNAME) SetMaxSize(MaxSize int) {
 	c.Lock.Lock() // Read+Write Lock
 	c.MaxSize = MaxSize
 	c.Lock.Unlock()
 }
+
+// GetMaxSize will get the max cache size.
 func (c *CacheContainer_KEYTYPE_VALNAME) GetMaxSize() (MaxSize int) {
 	c.Lock.Lock() // Read+Write Lock
 	MaxSize = c.MaxSize
@@ -173,11 +176,14 @@ func (c *CacheContainer_KEYTYPE_VALNAME) GetMaxSize() (MaxSize int) {
 	return MaxSize
 }
 
+// SetInterval sets the cache cleanup interval
 func (c *CacheContainer_KEYTYPE_VALNAME) SetInterval(t time.Duration) {
 	c.Lock.Lock() // Read+Write Lock
 	c.SweepInterval = t
 	c.Lock.Unlock()
 }
+
+// GetInterval gets the cache cleanup interval
 func (c *CacheContainer_KEYTYPE_VALNAME) GetInterval() time.Duration {
 	c.Lock.Lock() // Read+Write Lock
 	t := c.SweepInterval

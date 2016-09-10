@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-
 	//	"time"
 )
 
@@ -60,80 +59,80 @@ var tableLookupFrontEnd = []struct {
 	out   string
 }{
 	// top level
-	{"example.com", "A", "default", `{[example.com. 300 A 192.0.2.1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
-	{"example.com", "AAAA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] %!s(bool=true) %!s(int=0)}`},
-	{"example.com", "NS", "default", `{[example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
-	{"example.com", "SOA", "default", `{[example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
-	{"example.com", "TXT", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] %!s(bool=true) %!s(int=0)}`},
+	{"example.com", "A", "default", `{[example.com. 300 A 192.0.2.1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
+	{"example.com", "AAAA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] true 0}`},
+	{"example.com", "NS", "default", `{[example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
+	{"example.com", "SOA", "default", `{[example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
+	{"example.com", "TXT", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] true 0}`},
 
-	{"a.example.com", "A", "default", `{[a.example.com. 300 A 192.0.2.1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
-	{"a.example.com", "AAAA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] %!s(bool=true) %!s(int=0)}`},
-	{"a.example.com", "NS", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] %!s(bool=true) %!s(int=0)}`},
+	{"a.example.com", "A", "default", `{[a.example.com. 300 A 192.0.2.1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
+	{"a.example.com", "AAAA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] true 0}`},
+	{"a.example.com", "NS", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] true 0}`},
 
-	{"aaaa.example.com", "A", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] %!s(bool=true) %!s(int=0)}`},
-	{"aaaa.example.com", "AAAA", "default", `{[aaaa.example.com. 300 AAAA 2001:db8::1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
+	{"aaaa.example.com", "A", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] true 0}`},
+	{"aaaa.example.com", "AAAA", "default", `{[aaaa.example.com. 300 AAAA 2001:db8::1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
 
-	{"ds.example.com", "A", "default", `{[ds.example.com. 300 A 192.0.2.1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
-	{"ds.example.com", "AAAA", "default", `{[ds.example.com. 300 AAAA 2001:db8::1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
+	{"ds.example.com", "A", "default", `{[ds.example.com. 300 A 192.0.2.1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
+	{"ds.example.com", "AAAA", "default", `{[ds.example.com. 300 AAAA 2001:db8::1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
 
-	{"one.example.com", "A", "default", `{[one.example.com. 300 A 192.0.2.1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
-	{"one.example.com", "AAAA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] %!s(bool=true) %!s(int=0)}`},
+	{"one.example.com", "A", "default", `{[one.example.com. 300 A 192.0.2.1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
+	{"one.example.com", "AAAA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] true 0}`},
 
-	{"two.example.com", "A", "default", `{[two.example.com. 300 A 192.0.2.2] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
-	{"two.example.com", "AAAA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] %!s(bool=true) %!s(int=0)}`},
+	{"two.example.com", "A", "default", `{[two.example.com. 300 A 192.0.2.2] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
+	{"two.example.com", "AAAA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] true 0}`},
 
-	{"three.example.com", "A", "default", `{[three.example.com. 300 A 192.0.2.3] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
-	{"three.example.com", "AAAA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] %!s(bool=true) %!s(int=0)}`},
+	{"three.example.com", "A", "default", `{[three.example.com. 300 A 192.0.2.3] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
+	{"three.example.com", "AAAA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] true 0}`},
 
-	{"ds.example.com", "A", "default", `{[ds.example.com. 300 A 192.0.2.1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
-	{"ds.example.com", "AAAA", "default", `{[ds.example.com. 300 AAAA 2001:db8::1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
+	{"ds.example.com", "A", "default", `{[ds.example.com. 300 A 192.0.2.1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
+	{"ds.example.com", "AAAA", "default", `{[ds.example.com. 300 AAAA 2001:db8::1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
 
-	{"expand.example.com", "A", "default", `{[expand.example.com. 300 A 192.0.2.1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
-	{"expand.example.com", "AAAA", "default", `{[expand.example.com. 300 AAAA 2001:db8::1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
+	{"expand.example.com", "A", "default", `{[expand.example.com. 300 A 192.0.2.1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
+	{"expand.example.com", "AAAA", "default", `{[expand.example.com. 300 AAAA 2001:db8::1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
 
 	// Make sure that wildcards do the right thing, as long
 	// as they are no more than one hop away from a parent
 	// we have SOA for
-	{"foo.wildcard.example.com", "A", "default", `{[foo.wildcard.example.com. 300 A 192.0.2.1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
-	{"foo.wildcard.example.com", "AAAA", "default", `{[foo.wildcard.example.com. 300 AAAA 2001:db8::1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
-	{"foo.wildcard.example.com", "NS", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] %!s(bool=true) %!s(int=0)}`},
-	{"foo.wildcard.example.com", "SOA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] %!s(bool=true) %!s(int=0)}`},
+	{"foo.wildcard.example.com", "A", "default", `{[foo.wildcard.example.com. 300 A 192.0.2.1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
+	{"foo.wildcard.example.com", "AAAA", "default", `{[foo.wildcard.example.com. 300 AAAA 2001:db8::1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
+	{"foo.wildcard.example.com", "NS", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] true 0}`},
+	{"foo.wildcard.example.com", "SOA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] true 0}`},
 
 	// Check HC healthchecks, FB fallbacks, and what happens
 	// when all HC fail
-	{"hc.example.com", "A", "default", `{[hc.example.com. 300 A 192.0.2.1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
-	{"hc.example.com", "AAAA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] %!s(bool=true) %!s(int=0)}`},
+	{"hc.example.com", "A", "default", `{[hc.example.com. 300 A 192.0.2.1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
+	{"hc.example.com", "AAAA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] true 0}`},
 
 	// Try fallback, if the HC nodes are down use FB instead
-	{"fb.example.com", "A", "default", `{[fb.example.com. 300 A 192.0.2.3] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
-	{"fb.example.com", "AAAA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] %!s(bool=true) %!s(int=0)}`},
+	{"fb.example.com", "A", "default", `{[fb.example.com. 300 A 192.0.2.3] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
+	{"fb.example.com", "AAAA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] true 0}`},
 
 	// No FB?  Any time HC is specified, and all are down, return all of them instead of empty results.
 	// Chances are something is wrong with the monitoring.
-	{"nofb.example.com", "A", "default", `{[nofb.example.com. 300 A 192.0.2.1 nofb.example.com. 300 A 192.0.2.2] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
-	{"nofb.example.com", "AAAA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] %!s(bool=true) %!s(int=0)}`},
+	{"nofb.example.com", "A", "default", `{[nofb.example.com. 300 A 192.0.2.1 nofb.example.com. 300 A 192.0.2.2] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
+	{"nofb.example.com", "AAAA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] true 0}`},
 
 	// Local CNAMEs should expand out to IPs.
-	{"localcname.example.com", "A", "default", `{[localcname.example.com. 300 A 192.0.2.1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
-	{"localcname.example.com", "AAAA", "default", `{[localcname.example.com. 300 AAAA 2001:db8::1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] %!s(bool=true) %!s(int=0)}`},
+	{"localcname.example.com", "A", "default", `{[localcname.example.com. 300 A 192.0.2.1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
+	{"localcname.example.com", "AAAA", "default", `{[localcname.example.com. 300 AAAA 2001:db8::1] [example.com. 300 NS ns1.example.com. example.com. 300 NS ns1.example.org.] [ns1.example.com. 300 A 192.0.2.254 ns1.example.com. 300 AAAA 2001:db8::254] true 0}`},
 
 	// As a known side effect: Asking for CNAME on something we can expand, won't give you the CNAME.
 	// It'll give the A/AAAA (etc) instead.
-	{"localcname.example.com", "CNAME", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] %!s(bool=true) %!s(int=0)}`},
+	{"localcname.example.com", "CNAME", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] true 0}`},
 
 	// Foreign CNAMEs should not be expanded, but given to the caller to figure out.
-	{"foreigncname.example.com", "A", "default", `{[foreigncname.example.com. 300 CNAME ds.example.org.] [] [] %!s(bool=true) %!s(int=0)}`},
-	{"foreigncname.example.com", "AAAA", "default", `{[foreigncname.example.com. 300 CNAME ds.example.org.] [] [] %!s(bool=true) %!s(int=0)}`},
-	{"foreigncname.example.com", "CNAME", "default", `{[foreigncname.example.com. 300 CNAME ds.example.org.] [] [] %!s(bool=true) %!s(int=0)}`},
+	{"foreigncname.example.com", "A", "default", `{[foreigncname.example.com. 300 CNAME ds.example.org.] [] [] true 0}`},
+	{"foreigncname.example.com", "AAAA", "default", `{[foreigncname.example.com. 300 CNAME ds.example.org.] [] [] true 0}`},
+	{"foreigncname.example.com", "CNAME", "default", `{[foreigncname.example.com. 300 CNAME ds.example.org.] [] [] true 0}`},
 
 	// Names that don't exist, but under a known SOA
 	// Give back 0 answers.. with authority.
-	{"dne.example.com", "A", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] %!s(bool=true) %!s(int=3)}`},
-	{"dne.example.com", "AAAA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] %!s(bool=true) %!s(int=3)}`},
+	{"dne.example.com", "A", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] true 3}`},
+	{"dne.example.com", "AAAA", "default", `{[] [example.com. 300 SOA ns1.example.com. hostmaster.example.com. 1 10800 3600 604800 86400] [] true 3}`},
 
 	// Not our domain? Should be retreated as non-auth.
-	{"dne.example.org", "A", "default", `{[] [] [] %!s(bool=false) %!s(int=5)}`},
-	{"dne.example.org", "AAAA", "default", `{[] [] [] %!s(bool=false) %!s(int=5)}`},
+	{"dne.example.org", "A", "default", `{[] [] [] false 5}`},
+	{"dne.example.org", "AAAA", "default", `{[] [] [] false 5}`},
 }
 
 func TestLookupFrontEnd(t *testing.T) {
@@ -149,7 +148,7 @@ func TestLookupFrontEnd(t *testing.T) {
 		// tt.qname tt.qtype tt.view tt.out
 		s := LookupFrontEndNoCache(tt.qname, tt.view, tt.qtype, 0, notrace)
 
-		found := fmt.Sprintf("%s", s)
+		found := fmt.Sprintf("%v", s)
 
 		if found == tt.out {
 			t.Logf("LookupFrontEnd(zoneRef,%v,%v,%v) good", tt.qname, tt.view, tt.qtype)

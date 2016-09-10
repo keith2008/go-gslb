@@ -32,10 +32,11 @@ import (
 
 // GlobalStruct is a container for our global variables.
 type GlobalStruct struct {
-	Config   atomic.Value // server.conf: all server configs
-	ZoneData atomic.Value // zone.conf: Read from disk; drives isp and also healthchecks
-	ViewData atomic.Value // dynamic: ASN to ISP and Resolver to ISP lookups
-	MaxMind  atomic.Value // MaxMind IP to ASN
+	Config        atomic.Value // server.conf: all server configs
+	ZoneData      atomic.Value // zone.conf: Read from disk; drives isp and also healthchecks
+	ViewData      atomic.Value // dynamic: ASN to ISP and Resolver to ISP lookups
+	GeoIP2Country atomic.Value // GeoIP2
+	GeoIP2ISP     atomic.Value // GeoIP2
 }
 
 // Global is a container for our global variables.
@@ -54,9 +55,13 @@ func initGlobal(etc string) {
 		SetGlobalConfig(NewConfig())
 		SetGlobalZoneData(NewConfig())
 		SetGlobalViewData(NewConfig())
+		if m, err := NewGeoIP2(""); err != nil {
+			SetGlobalGeoIP2ISP(m)
+		}
+		if m, err := NewGeoIP2(""); err != nil {
+			SetGlobalGeoIP2Country(m)
+		}
 
-		m, _ := NewMaxMind("", "") // This one may actaully throw an error
-		SetGlobalMaxMind(m)
 		LoadConfigs(etc)
 		go taskScanConfigs(etc)
 	}
@@ -75,6 +80,8 @@ func GlobalConfig() *Config {
 	return Global.Config.Load().(*Config)
 }
 
+// GlobalConfigAvailable indicates that the global config
+// is ready to use
 func GlobalConfigAvailable() bool {
 	i := Global.Config.Load()
 	return i != nil
@@ -102,40 +109,51 @@ func GlobalViewData() *Config {
 	return Global.ViewData.Load().(*Config)
 }
 
-// SetGlobalMaxMind sets the new configuration *Config object (threadsafe)
-func SetGlobalMaxMind(m *MaxMind) {
-	Global.MaxMind.Store(m)
+// SetGlobalGeoIP2Country sets the new configuration *Config object (threadsafe)
+func SetGlobalGeoIP2Country(m *GeoIP2) {
+	Global.GeoIP2Country.Store(m)
 }
 
-// GlobalMaxMind returns the current zone data  *Config object.
-// Once acquired, you can safely use that object for RO operations.
-func GlobalMaxMind() *MaxMind {
-	return Global.MaxMind.Load().(*MaxMind)
+// GlobalGeoIP2Country ...
+func GlobalGeoIP2Country() *GeoIP2 {
+	return Global.GeoIP2Country.Load().(*GeoIP2)
+}
+
+// SetGlobalGeoIP2ISP sets the new configuration *Config object (threadsafe)
+func SetGlobalGeoIP2ISP(m *GeoIP2) {
+	Global.GeoIP2ISP.Store(m)
+}
+
+// GlobalGeoIP2ISP ...
+func GlobalGeoIP2ISP() *GeoIP2 {
+	return Global.GeoIP2ISP.Load().(*GeoIP2)
 }
 
 // LoadConfigs will re-read all configs, as well as flush query caches.
 func LoadConfigs(path string) {
 	log.Printf("LoadConfigs(%v)\n", path)
 
-	loadConfig(path + "/server.conf")                               // Latest server config object
-	loadZone(path + "/zone.conf")                                   // Latest zone info
-	loadMaxMind(path+"/GeoIPASNum2.csv", path+"/GeoIPASNum2v6.csv") // Latest ASN info
-	scanForHealthChecks()                                           // Starts new background checks if needed
-	ClearCaches("Configuration files loaded")                       // Flush any and all caches after any config has changed
-
+	loadConfig(path + "/server.conf") // Latest server config object
+	loadZone(path + "/zone.conf")
+	loadGeoIP2Country("/var/lib/GeoIP/GeoIP2-Country.mmdb") // Used for Country ISO
+	loadGeoIP2ISP("/var/lib/GeoIP/GeoIP2-ISP.mmdb")         // Used for ASN and ISP name
+	scanForHealthChecks()                                   // Starts new background checks if needed
+	ClearCaches("Configuration files loaded")               // Flush any and all caches after any config has changed
 }
 
 // scanConfigs Check to see if we need to reload anything.
 func scanConfigs(etc string) {
 
 	// Get pointers to current active versions
-	m := GlobalMaxMind()
+	m1 := GlobalGeoIP2Country()
+	m2 := GlobalGeoIP2ISP()
 	c := GlobalConfig()
 	z := GlobalZoneData()
 
 	//	fmt.Printf("scanConfigs() trace info m=%v c=%vv z=%v\n", m.NeedReload(), c.NeedReload(), z.NeedReload())
 
-	if m.NeedReload() ||
+	if m1.NeedReload() ||
+		m2.NeedReload() ||
 		c.NeedReload() ||
 		z.NeedReload() {
 		Debugf("LoadConfigs()\n")
@@ -163,14 +181,21 @@ func loadZone(path string) {
 	SetGlobalZoneData(C)
 	scanForASN()
 }
-
-func loadMaxMind(path4 string, path6 string) {
-	Debugf("loadMaxMind(%v, %v)\n", path4, path6)
-	M, err := NewMaxMind(path4, path6)
+func loadGeoIP2Country(filename string) {
+	M, err := NewGeoIP2(filename)
 	if err != nil {
-		log.Fatalf("Fatal error loading %v, %v: %v\n", path4, path6, err)
+		log.Printf("ERROR: Failed to load MaxMind data %v: %v", filename, err.Error())
+	} else {
+		SetGlobalGeoIP2Country(M)
 	}
-	SetGlobalMaxMind(M) // threadsafe publish finished product to global
+}
+func loadGeoIP2ISP(filename string) {
+	M, err := NewGeoIP2(filename)
+	if err != nil {
+		log.Printf("ERROR: Failed to load MaxMind data %v: %v", filename, err.Error())
+	} else {
+		SetGlobalGeoIP2ISP(M)
+	}
 }
 
 func taskScanConfigs(etc string) {
@@ -218,7 +243,7 @@ func scanForASN() {
 
 	// Need to read all the data, see what health checks are needed
 	for key, val := range z.Data {
-		if (key.Name == "as") || (key.Name == "resolver") {
+		if (key.Name == "country" || key.Name == "as") || (key.Name == "resolver") {
 			for _, s := range val.Values {
 				//  s = the resolver or the AS number
 				I.AddKeyValue(ConfigKey{"default", s}, key.Section) // Adding {default/7922} Comcast

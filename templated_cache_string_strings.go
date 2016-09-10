@@ -1,5 +1,5 @@
 //AUTO GENERATED CODE
-//\\//go:generated -command doit  ./mygen.pl cache_template.go
+//\\//go:generated -command doit command ./mygen.pl cache_template.go
 //\\//go:generated doit templated_cache_string_string.go            KEYTYPE=string  VALTYPE=string VALNAME=string VALDEFAULT=""
 //\\//go:generated doit templated_cache_string_strings.go           KEYTYPE=string  VALTYPE=[]string VALNAME=strings VALDEFAULT=nil
 //\\//go:generated doit templated_cache_LookupBEKey_strings.go      KEYTYPE=LookupBEKey VALTYPE=[]string VALNAME=strings  VALDEFAULT=[]string{}
@@ -161,11 +161,14 @@ func (c *CacheContainer_string_strings) maintenance() {
 	}
 }
 
+// SetMaxSize will set the max cache size.
 func (c *CacheContainer_string_strings) SetMaxSize(MaxSize int) {
 	c.Lock.Lock() // Read+Write Lock
 	c.MaxSize = MaxSize
 	c.Lock.Unlock()
 }
+
+// GetMaxSize will get the max cache size.
 func (c *CacheContainer_string_strings) GetMaxSize() (MaxSize int) {
 	c.Lock.Lock() // Read+Write Lock
 	MaxSize = c.MaxSize
@@ -173,11 +176,14 @@ func (c *CacheContainer_string_strings) GetMaxSize() (MaxSize int) {
 	return MaxSize
 }
 
+// SetInterval sets the cache cleanup interval
 func (c *CacheContainer_string_strings) SetInterval(t time.Duration) {
 	c.Lock.Lock() // Read+Write Lock
 	c.SweepInterval = t
 	c.Lock.Unlock()
 }
+
+// GetInterval gets the cache cleanup interval
 func (c *CacheContainer_string_strings) GetInterval() time.Duration {
 	c.Lock.Lock() // Read+Write Lock
 	t := c.SweepInterval

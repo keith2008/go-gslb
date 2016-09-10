@@ -7,10 +7,15 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/miekg/dns"
+)
+
+// DEFAULT and other constants to save memory
+// and silence go lint
+const (
+	DEFAULT = "default"
 )
 
 // NOTRACE is a shared trace config (basically: "no trace") that has no need to share the audit trail.
@@ -27,7 +32,7 @@ func findViewOnly(ipString string) (view string) {
 	if val, ok := CacheView.Get(ipString); ok {
 		return val
 	}
-	view, _, _ = findView(ipString) // view,asn,ispname
+	view, _, _, _ = findView(ipString) // view,asn,ispname
 	if view != "" {
 		CacheView.Set(ipString, view)
 	}
@@ -37,27 +42,40 @@ func findViewOnly(ipString string) (view string) {
 // findView will (for a given IP string) return the "view" (ie, "comcast" or "default",
 // the asn number (as a string), and the ISP info (as a string).
 // This is not cached.
-func findView(ipString string) (view string, asnString string, ispString string) {
+func findView(ipString string) (view string, asnString string, ispString string, countryString string) {
+	defer func() {
+		log.Printf("findView(%s) returning(%s, %s, %s, %s)\n", ipString, view, asnString, ispString, countryString)
+	}()
 	//fmt.Printf("findView(%s)\n", ipString)
 	ip, _, err := net.SplitHostPort(ipString)
 	if err == nil {
 		ipString = ip // With the :portnumber removed.
 	}
-	var asn uint32
-	asn, ispString = GlobalMaxMind().LookupAsnPlusName(ipString) // AS number and ISP text Name
-	asnString = strconv.FormatUint(uint64(asn), 10)
 
-	statsMaxMind.Increment(asnString) // Keep track of queries from various service providers.
+	if record, _ := GlobalGeoIP2Country().Country(ipString); record != nil {
+		countryString = record.Country.IsoCode
+	}
+	if record, _ := GlobalGeoIP2ISP().ISP(ipString); record != nil {
+		asnString = fmt.Sprintf("%v", record.AutonomousSystemNumber)
+		ispString = record.ISP
+	}
 
-	view = "default"      // Default view name.  May override based on ASN or Resolver
+	statsMaxMind.Increment(countryString) // Keep track of queries from various countries
+	statsMaxMind.Increment(asnString)     // Keep track of queries from various service providers.
+
+	view = DEFAULT        // Default view name.  May override based on ASN or Resolver
 	I := GlobalViewData() // Get and keep a stable (threadsafe) handle
-	if found, ok := I.GetSectionNameValueString("default", asnString); ok {
+	if found, ok := I.GetSectionNameValueString(DEFAULT, countryString); ok {
 		view = found
 	}
-	if found, ok := I.GetSectionNameValueString("default", ipString); ok {
+	if found, ok := I.GetSectionNameValueString(DEFAULT, asnString); ok {
 		view = found
 	}
-	return view, asnString, ispString
+	if found, ok := I.GetSectionNameValueString(DEFAULT, ipString); ok {
+		view = found
+	}
+
+	return view, asnString, ispString, countryString
 }
 
 // ourNewRR combined dns.NewRR with a local cache.
@@ -81,9 +99,9 @@ func ourNewRR(s string) (dns.RR, error) {
 		CacheRR.Set(s, parsed)
 		deep := dns.Copy(parsed)
 		return deep, err
-	} 
+	}
 	// Failed to parse? Skip the deep copy.
-	log.Printf("Failed to parse RR: '%s'  err=%v\n",s,err);
+	log.Printf("Failed to parse RR: '%s'  err=%v\n", s, err)
 	return parsed, err
 }
 

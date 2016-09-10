@@ -11,10 +11,10 @@ var tableFindView = []struct {
 	in  string
 	out string
 }{
-	{"50.184.213.245:12345", "view=comcast asn=7922 isp=Comcast Cable Communications, Inc."},
-	{"[2601:647:4900:78ae:d497:ef6b:9e49:d98]:12345", "view=comcast asn=7922 isp=Comcast Cable Communications, Inc."},
-	{"[206.190.36.45]:12345", "view=default asn=36647 isp=Yahoo"},
-	{"[216.218.228.114]:12345", "view=default asn=6939 isp=Hurricane Electric, Inc."},
+	{"50.184.213.245:12345", "view=comcast asn=7922 isp=Comcast Cable country=US"},
+	{"[2601:647:4900:78ae:d497:ef6b:9e49:d98]:12345", "view=comcast asn=7922 isp=Comcast Cable country=US"},
+	{"[206.190.36.45]:12345", "view=default asn=36647 isp=Yahoo! Broadcast Services country=US"},
+	{"[216.218.228.114]:12345", "view=default asn=6939 isp=Hurricane Electric country=US"},
 }
 
 func TestFindView(t *testing.T) {
@@ -22,8 +22,8 @@ func TestFindView(t *testing.T) {
 
 	for _, tt := range tableFindView {
 		// tt.in tt.out
-		view, asnString, ispString := findView(tt.in)
-		found := fmt.Sprintf("view=%v asn=%v isp=%v", view, asnString, ispString)
+		view, asnString, ispString, country := findView(tt.in)
+		found := fmt.Sprintf("view=%v asn=%v isp=%v country=%v", view, asnString, ispString, country)
 
 		if found == tt.out {
 			t.Logf("findView(%v) good", tt.in)
@@ -78,7 +78,7 @@ func BenchmarkFindViewIpNoPort(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		_, _, _ = findView(ip)
+		_, _, _, _ = findView(ip)
 	}
 }
 
@@ -87,13 +87,13 @@ func BenchmarkFindViewIpPort(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		_, _, _ = findView(ip)
+		_, _, _, _ = findView(ip)
 	}
 }
 
 func BenchmarkFindViewCached(b *testing.B) {
 	ip := "50.184.213.245:12345"
-	_, asn, _ := findView(ip)
+	_, asn, _, _ := findView(ip)
 	CacheView.Set(ip, asn)
 	b.ReportAllocs()
 	b.ResetTimer()
