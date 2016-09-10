@@ -31,8 +31,6 @@ func handleAS(w dns.ResponseWriter, r *dns.Msg) {
 	list = append(list, w.RemoteAddr().String())
 	ipString, subnetString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
 
-	log.Printf("after getClientInfo, we found ipString=%s subnetString=%v subnetSpecified=%v", ipString, subnetString, subnetSpecified)
-
 	_ = subnetString
 	if subnetSpecified {
 		list = append(list, ipString)
@@ -220,7 +218,6 @@ func handleMaxMind(w dns.ResponseWriter, r *dns.Msg) {
 	list := []string{}
 	list = append(list, w.RemoteAddr().String())
 	ipString, subnetString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
-	log.Printf("after getClientInfo, we found ipString=%s subnetString=%v subnetSpecified=%v", ipString, subnetString, subnetSpecified)
 
 	_ = subnetString
 	if subnetSpecified {
