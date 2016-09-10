@@ -181,7 +181,7 @@ func handleMaxMind(w dns.ResponseWriter, r *dns.Msg) {
 	ipOnly, _, _ := net.SplitHostPort(ipString)
 
 	_, asn, txt, country := findView(ipString) // Geo + Resolver -> which data name in zone.conf
-	txt = fmt.Sprintf("ip=%s as=%s isp='%s' country=%s", ipOnly, asn, txt, country)
+	txt = fmt.Sprintf("ip=%s as=%s isp='%s' country='%s'", ipOnly, asn, txt, country)
 	rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+txt+`"`))
 	if err == nil {
 		m.Answer = append(m.Answer, rr)
