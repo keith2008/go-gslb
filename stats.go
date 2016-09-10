@@ -15,7 +15,8 @@ type statsBundleType struct {
 
 var statsQuery = newStat("query")
 var statsResponse = newStat("response")
-var statsMaxMind = newStat("maxmind")
+var statsMaxMindASN = newStat("maxmind_asn")
+var statsMaxMindCountry = newStat("maxmind_country")
 var statsCache = newStat("cache")
 
 func (b *statsBundleType) Increment(s string) {

@@ -60,8 +60,8 @@ func findView(ipString string) (view string, asnString string, ispString string,
 		ispString = record.ISP
 	}
 
-	statsMaxMind.Increment(countryString) // Keep track of queries from various countries
-	statsMaxMind.Increment(asnString)     // Keep track of queries from various service providers.
+	statsMaxMindCountry.Increment(countryString) // Keep track of queries from various countries
+	statsMaxMindASN.Increment(asnString)         // Keep track of queries from various service providers.
 
 	view = DEFAULT        // Default view name.  May override based on ASN or Resolver
 	I := GlobalViewData() // Get and keep a stable (threadsafe) handle
