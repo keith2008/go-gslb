@@ -84,7 +84,10 @@ func handleHelp(w dns.ResponseWriter, r *dns.Msg) {
 	for _, rr := range handleHelpHelper(qname, "as", "Reports your ISP's BGP ASN") {
 		m.Answer = append(m.Answer, rr)
 	}
-	for _, rr := range handleHelpHelper(qname, "isp", "Reports your ISP's name") {
+	for _, rr := range handleHelpHelper(qname, "provider", "Reports your ISP's name") {
+		m.Answer = append(m.Answer, rr)
+	}
+	for _, rr := range handleHelpHelper(qname, "country", "Reports your ISP's country") {
 		m.Answer = append(m.Answer, rr)
 	}
 	for _, rr := range handleHelpHelper(qname, "maxmind", "Reports what we know from MaxMind") {
@@ -117,6 +120,37 @@ func handleISP(w dns.ResponseWriter, r *dns.Msg) {
 	ipString := w.RemoteAddr().String()
 	_, _, txt, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
 	txt = fmt.Sprintf("isp='%s'", txt)
+	rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+txt+`"`))
+	if err == nil {
+		m.Answer = append(m.Answer, rr)
+	}
+
+	vixie0x20HackMsg(m) // Handle MixEdCase.org requests
+	statsMsg(r)
+	statsMsg(m)
+	w.WriteMsg(m)
+	return
+}
+
+// handleCountry replies with TXT "country=US"
+func handleCountry(w dns.ResponseWriter, r *dns.Msg) {
+
+	m := new(dns.Msg)
+	m.SetReply(r)
+	m.Compress = true
+
+	// Reasons to refuse to answer, there are many.
+	if r.Question[0].Qclass != dns.ClassINET ||
+		(r.Question[0].Qtype != dns.TypeTXT && r.Question[0].Qtype != dns.TypeANY) {
+		w.WriteMsg(m)
+		return
+	}
+
+	qname := r.Question[0].Name // This is OUR name; so use it in our response
+
+	ipString := w.RemoteAddr().String()
+	_, _, _, country := findView(ipString) // Geo + Resolver -> which data name in zone.conf
+	txt := fmt.Sprintf("country='%s'", country)
 	rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+txt+`"`))
 	if err == nil {
 		m.Answer = append(m.Answer, rr)

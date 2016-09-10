@@ -30,11 +30,12 @@ func initDNS() {
 	initDNSSpecialHandlers("ip", handleIP)           // Might have more than one name for specialty responders
 	initDNSSpecialHandlers("as", handleAS)           // Might have more than one name for specialty responders
 	initDNSSpecialHandlers("isp", handleISP)         // Might have more than one name for specialty responders
+	initDNSSpecialHandlers("country", handleCountry) // Might have more than one name for specialty responders
 	initDNSSpecialHandlers("view", handleView)       // Might have more than one name for specialty responders
 	initDNSSpecialHandlers("maxmind", handleMaxMind) // Might have more than one name for specialty responders
 	initDNSSpecialHandlers("help", handleHelp)       // Might have more than one name for specialty responders
-	initDNSSpecialHandlers("break",handleBreak)  // Might have more than one name for specialty responders
-	dns.HandleFunc(".", handleGSLB) // Anything else, send it to the heavier weight processor.
+	initDNSSpecialHandlers("break", handleBreak)     // Might have more than one name for specialty responders
+	dns.HandleFunc(".", handleGSLB)                  // Anything else, send it to the heavier weight processor.
 }
 
 // initDNSSpecialHandlers will look in your config for a named config variable,
