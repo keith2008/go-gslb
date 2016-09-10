@@ -55,10 +55,10 @@ func initGlobal(etc string) {
 		SetGlobalConfig(NewConfig())
 		SetGlobalZoneData(NewConfig())
 		SetGlobalViewData(NewConfig())
-		if m, err := NewGeoIP2(""); err != nil {
+		if m, err := NewGeoIP2(""); err == nil {
 			SetGlobalGeoIP2ISP(m)
 		}
-		if m, err := NewGeoIP2(""); err != nil {
+		if m, err := NewGeoIP2(""); err == nil {
 			SetGlobalGeoIP2Country(m)
 		}
 
