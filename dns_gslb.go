@@ -128,10 +128,11 @@ func getClientInfo(w dns.ResponseWriter, r *dns.Msg) (ipString string, subnetStr
 				*newSubnet = *e
 				newSubnet.SourceScope = e.SourceNetmask
 				newSubnetOpt.Option = append(newSubnetOpt.Option, e)
-				log.Printf("%s used edns0 client subnet to ask instead for %s\n", ipString, e.Address.String())
 				ipString = e.Address.String()
 				subnetString = fmt.Sprintf("%s/%v", ipString, e.SourceNetmask)
 				subnetSpecified = true
+				log.Printf("%s used edns0 subnet %s for %s\n", w.RemoteAddr().String(), subnetString, r.Question[0].String())
+
 			}
 		}
 	}
