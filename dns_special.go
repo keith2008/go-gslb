@@ -26,14 +26,23 @@ func handleAS(w dns.ResponseWriter, r *dns.Msg) {
 
 	qname := r.Question[0].Name // This is OUR name; so use it in our response
 
-	ipString := w.RemoteAddr().String()
-	_, asnString, _, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
-	//view, asnString, ispString := findView(ipString) // Geo + Resolver -> which data name in zone.conf
-	txt := fmt.Sprintf("as=%v", asnString)
+	list := []string{}
+	list = append(list, w.RemoteAddr().String())
+	ipString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
+	if subnetSpecified {
+		list = append(list, ipString)
+		m.Extra = append(m.Extra, newSubnetOpt)
+	}
 
-	rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+txt+`"`))
-	if err == nil {
-		m.Answer = append(m.Answer, rr)
+	for _, ipString = range list {
+		_, asnString, _, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
+		//view, asnString, ispString := findView(ipString) // Geo + Resolver -> which data name in zone.conf
+		txt := fmt.Sprintf("as=%v", asnString)
+
+		rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+txt+`"`))
+		if err == nil {
+			m.Answer = append(m.Answer, rr)
+		}
 	}
 
 	statsMsg(r)
@@ -117,12 +126,20 @@ func handleISP(w dns.ResponseWriter, r *dns.Msg) {
 
 	qname := r.Question[0].Name // This is OUR name; so use it in our response
 
-	ipString := w.RemoteAddr().String()
-	_, _, txt, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
-	txt = fmt.Sprintf("isp='%s'", txt)
-	rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+txt+`"`))
-	if err == nil {
-		m.Answer = append(m.Answer, rr)
+	list := []string{}
+	list = append(list, w.RemoteAddr().String())
+	ipString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
+	if subnetSpecified {
+		list = append(list, ipString)
+		m.Extra = append(m.Extra, newSubnetOpt)
+	}
+	for _, ipString = range list {
+		_, _, txt, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
+		txt = fmt.Sprintf("isp='%s'", txt)
+		rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+txt+`"`))
+		if err == nil {
+			m.Answer = append(m.Answer, rr)
+		}
 	}
 
 	vixie0x20HackMsg(m) // Handle MixEdCase.org requests
@@ -148,14 +165,22 @@ func handleCountry(w dns.ResponseWriter, r *dns.Msg) {
 
 	qname := r.Question[0].Name // This is OUR name; so use it in our response
 
-	ipString := w.RemoteAddr().String()
-	_, _, _, country := findView(ipString) // Geo + Resolver -> which data name in zone.conf
-	txt := fmt.Sprintf("country='%s'", country)
-	rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+txt+`"`))
-	if err == nil {
-		m.Answer = append(m.Answer, rr)
+	list := []string{}
+	list = append(list, w.RemoteAddr().String())
+	ipString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
+	if subnetSpecified {
+		list = append(list, ipString)
+		m.Extra = append(m.Extra, newSubnetOpt)
 	}
 
+	for _, ipString = range list {
+		_, _, _, country := findView(ipString) // Geo + Resolver -> which data name in zone.conf
+		txt := fmt.Sprintf("country='%s'", country)
+		rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+txt+`"`))
+		if err == nil {
+			m.Answer = append(m.Answer, rr)
+		}
+	}
 	vixie0x20HackMsg(m) // Handle MixEdCase.org requests
 	statsMsg(r)
 	statsMsg(m)
@@ -177,14 +202,21 @@ func handleMaxMind(w dns.ResponseWriter, r *dns.Msg) {
 
 	qname := r.Question[0].Name // This is OUR name; so use it in our response
 
-	ipString := w.RemoteAddr().String()
-	ipOnly, _, _ := net.SplitHostPort(ipString)
-
-	_, asn, txt, country := findView(ipString) // Geo + Resolver -> which data name in zone.conf
-	txt = fmt.Sprintf("ip=%s as=%s isp='%s' country='%s'", ipOnly, asn, txt, country)
-	rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+txt+`"`))
-	if err == nil {
-		m.Answer = append(m.Answer, rr)
+	list := []string{}
+	list = append(list, w.RemoteAddr().String())
+	ipString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
+	if subnetSpecified {
+		list = append(list, ipString)
+		m.Extra = append(m.Extra, newSubnetOpt)
+	}
+	for _, ipString = range list {
+		ipOnly, _, _ := net.SplitHostPort(ipString)
+		_, asn, txt, country := findView(ipString) // Geo + Resolver -> which data name in zone.conf
+		txt = fmt.Sprintf("ip=%s as=%s isp='%s' country='%s'", ipOnly, asn, txt, country)
+		rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+txt+`"`))
+		if err == nil {
+			m.Answer = append(m.Answer, rr)
+		}
 	}
 
 	vixie0x20HackMsg(m) // Handle MixEdCase.org requests
@@ -209,7 +241,11 @@ func handleView(w dns.ResponseWriter, r *dns.Msg) {
 
 	qname := r.Question[0].Name // This is OUR name; so use it in our response
 
-	ipString := w.RemoteAddr().String()
+	ipString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
+	if subnetSpecified {
+		m.Extra = append(m.Extra, newSubnetOpt)
+	}
+
 	txt, _, _, _ := findView(ipString) // Geo + Resolver -> which data name in zone.conf
 	//view, asnString, ispString := findView(ipString) // Geo + Resolver -> which data name in zone.conf
 	rr, err := ourNewRR(fmt.Sprintf("%s 0 TXT %s", qname, `"`+"view="+txt+`"`))
@@ -253,6 +289,7 @@ func handleIP(w dns.ResponseWriter, r *dns.Msg) {
 	case dns.TypeA, dns.TypeAAAA, dns.TypeANY, dns.TypeTXT:
 
 		// Only do real work fo-r A, AAAA, and TXT requests.
+
 		if ip, ok := w.RemoteAddr().(*net.UDPAddr); ok {
 			str = fmt.Sprintf("%s (udp)", ip.String())
 			a = ip.IP
@@ -284,8 +321,58 @@ func handleIP(w dns.ResponseWriter, r *dns.Msg) {
 		t := new(dns.TXT)
 		t.Hdr = dns.RR_Header{Name: qname, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 0}
 		t.Txt = []string{str}
+		if r.Question[0].Qtype == dns.TypeANY || r.Question[0].Qtype == dns.TypeTXT {
+			m.Answer = append(m.Answer, t)
+		} else {
+			m.Extra = append(m.Extra, t)
+		}
 
-		m.Extra = append(m.Extra, t)
+		ipString, subnetSpecified, newSubnetOpt := getClientInfo(w, r)
+		if subnetSpecified {
+			str = fmt.Sprintf("%s (edns0-client-subnet)", ipString)
+
+			// This is dumb as hell. Why can't I get to this easier?
+			if opt := r.IsEdns0(); opt != nil {
+				for _, o := range opt.Option {
+					switch e := o.(type) {
+					case *dns.EDNS0_NSID:
+						// do stuff with e.Nsid
+					case *dns.EDNS0_SUBNET:
+						str = fmt.Sprintf("%s/%v (edns0-client-subnet)", ipString, e.SourceNetmask)
+					}
+				}
+			}
+
+			a = net.ParseIP(ipString)
+			v4 = a.To4() != nil
+
+			if v4 == true {
+				if r.Question[0].Qtype == dns.TypeA || r.Question[0].Qtype == dns.TypeANY {
+					rr = new(dns.A)
+					rr.(*dns.A).Hdr = dns.RR_Header{Name: qname, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 0}
+					rr.(*dns.A).A = a.To4()
+					m.Answer = append(m.Answer, rr)
+				}
+			}
+			if v4 == false {
+				if r.Question[0].Qtype == dns.TypeAAAA || r.Question[0].Qtype == dns.TypeANY {
+					rr = new(dns.AAAA)
+					rr.(*dns.AAAA).Hdr = dns.RR_Header{Name: qname, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 0}
+					rr.(*dns.AAAA).AAAA = a
+					m.Answer = append(m.Answer, rr)
+				}
+			}
+
+			t = new(dns.TXT)
+			t.Hdr = dns.RR_Header{Name: qname, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 0}
+			t.Txt = []string{str}
+			if r.Question[0].Qtype == dns.TypeANY || r.Question[0].Qtype == dns.TypeTXT {
+				m.Answer = append(m.Answer, t)
+			} else {
+				m.Extra = append(m.Extra, t)
+			}
+			m.Extra = append(m.Extra, newSubnetOpt)
+		}
 
 	}
 	// Finish up.
