@@ -112,6 +112,8 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	// TODO  Pack our own reply.
 	// TODO  cache said reply.
 	// TODO serve from cache (with fixed msg.Id) when possible.
+	var newOpt *dns.OPT
+	var edns0 bool
 
 	qname := r.Question[0].Name         // This is OUR name; so use it in our response
 	ipString := w.RemoteAddr().String() // The user is from where?. dns.go only gives us strings.
@@ -119,12 +121,37 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	qtypeStr := qtypeToString(qtype)    // What are we asking for? A STRING!
 	qnameLC := toLower(qname)           // We will ask for lowercase everything internally.
 	wasLC := qname == qnameLC           // We really care about the case that people us when asking.
-	view := findViewOnly(ipString)      // Geo + Resolver -> which data name in zone.conf
+
+	newOpt = new(dns.OPT)
+	newOpt.Hdr.Name = "."
+	newOpt.Hdr.Rrtype = dns.TypeOPT
+
+	// What if .. client subnet was specified?
+	if opt := r.IsEdns0(); opt != nil {
+		for _, o := range opt.Option {
+			switch e := o.(type) {
+			case *dns.EDNS0_NSID:
+				// do stuff with e.Nsid
+			case *dns.EDNS0_SUBNET:
+				//	e.Address.String()
+				//	e.SourceNetmask
+				newSubnet := &dns.EDNS0_SUBNET{}
+				*newSubnet = *e
+				newSubnet.SourceScope = e.SourceNetmask
+				newOpt.Option = append(newOpt.Option, e)
+				log.Printf("%s used edns0 client subnet to ask instead for %s\n", ipString, e.Address.String())
+				ipString = e.Address.String()
+				edns0 = true
+			}
+		}
+	}
+
+	view := findViewOnly(ipString) // Geo + Resolver -> which data name in zone.conf
 
 	QI := QueryInfo{qname: qname, view: view, qtype: qtypeStr}
 
 	// Hey.  Maybe we can return cached data?
-	if wasLC {
+	if wasLC == true && edns0 == false {
 		if cached, ok := CacheMsgs.Get(QI); ok {
 			statsCache.Increment("gslb-hit")
 			j := rand.Intn(len(cached))   // We expect multiple possible results; answer one at random.
@@ -152,6 +179,9 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 	m := new(dns.Msg)
 	m.SetReply(r)
 	m.Compress = true
+	if edns0 {
+		m.Extra = append(m.Extra, newOpt)
+	}
 
 	// Reasons to refuse to answer, there are many.
 	if r.Question[0].Qclass != dns.ClassINET ||
@@ -233,7 +263,7 @@ func handleGSLB(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
-	if wasLC == true {
+	if wasLC == true && edns0 == false {
 		// Hey, we can cache this.
 		// No MixEdCaSE
 		rcodeStr := rcodeToString(stuff.Rcode) // For stats
