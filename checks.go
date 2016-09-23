@@ -159,6 +159,9 @@ func checkMirror(hostname string) (bool, error) {
 	if err == nil && b == true {
 		b, err = checkMirrorHelper("mtu1280." + hostname) // Check also implied mtu1280.site as well
 	}
+	if err != nil {
+		log.Print("check_mirror(%s) yields %v %v\n",hostname,b,err)
+	}
 	return b, err
 }
 
