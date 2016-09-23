@@ -12,8 +12,11 @@ import (
 )
 
 // Dispatch function.  Any new checks must also update this function.
-func dispatchServiceCheck(service string, target string) (bool, error) {
+func dispatchServiceCheck(service string, target string) (b bool, e error) {
 	// Do stuff, once
+	defer func() {
+	  log.Printf("service check service=%s target=%s bool=%v error=%v\n",service,target,b,e)
+	}()
 
 	switch service {
 	case "check_true":
@@ -158,9 +161,6 @@ func checkMirror(hostname string) (bool, error) {
 	b, err := checkMirrorHelper(hostname) // Check the named site first
 	if err == nil && b == true {
 		b, err = checkMirrorHelper("mtu1280." + hostname) // Check also implied mtu1280.site as well
-	}
-	if err != nil {
-		log.Print("check_mirror(%s) yields %v %v\n",hostname,b,err)
 	}
 	return b, err
 }
