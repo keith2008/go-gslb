@@ -15,7 +15,9 @@ import (
 func dispatchServiceCheck(service string, target string) (b bool, e error) {
 	// Do stuff, once
 	defer func() {
-	  log.Printf("service check service=%s target=%s bool=%v error=%v\n",service,target,b,e)
+	  if b==false || e != nil {
+  	  log.Printf("service check service=%s target=%s bool=%v error=%v\n",service,target,b,e)
+	  }
 	}()
 
 	switch service {
@@ -180,6 +182,9 @@ func checkMirrorHelper(hostname string) (bool, error) {
 	}
 	defer resp.Body.Close()                                     // If the request worked, one MUST ALWAYS close the body.  ALWAYS.
 	body, err := ioutil.ReadAll(resp.Body)                      // Grab the body content.
-	b := strings.Contains(string(body), `master.test-ipv6.com`) // Check to see if it looks like our master site is mentioned.
-	return b, nil                                               // Return true/false, no errors.
+	b := strings.Contains(string(body), `MirrorConfig`) // Dumbed down.
+	if b {
+	return true,nil
+	}
+	return false,fmt.Errorf("Did not see MirrorConfig in %s",url)
 }
