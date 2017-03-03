@@ -129,8 +129,8 @@ func checkHTTPHelper(host string, port string) (bool, error) {
 	client := &http.Client{Timeout: timeout}
 	hostport, _ := LookupAddressHostPort(host, port) // Find IP - either internally, or DNS
 	url := "http://" + hostport
-	
-//	log.Printf("checkHTTPHelper checking host %s port %v url %v\n",host,port,url);
+
+	//	log.Printf("checkHTTPHelper checking host %s port %v url %v\n",host,port,url);
 
 	req, err := http.NewRequest("GET", url, nil)
 	req.Host = host // Restore original hostname
@@ -157,7 +157,10 @@ func checkHTTPHelper(host string, port string) (bool, error) {
 func checkMirror(hostname string) (bool, error) {
 	b, err := checkMirrorHelper(hostname) // Check the named site first
 	if err == nil && b == true {
-		b, err = checkMirrorHelper("mtu1280." + hostname) // Check also implied mtu1280.site as well
+		trimmed := hostname
+		trimmed = strings.TrimPrefix(trimmed, "ds.")
+		trimmed = strings.TrimPrefix(trimmed, "ipv6.")
+		b, err = checkMirrorHelper("mtu1280." + trimmed) // Check also implied mtu1280.site as well
 	}
 	return b, err
 }
